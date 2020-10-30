@@ -1,0 +1,13 @@
+build/
+dist/
+__pycached__/
+*.pyc 
+.tox/
+.vscode/
+*.egg-info/
+
+
+.snapmgr/
+tmp/
+bak/
+temp/
