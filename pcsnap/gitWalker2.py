@@ -1,6 +1,9 @@
 import os
+import sys
 import subprocess
-from pcsnap.utils.utils import timeCount
+import asyncio
+from pcsnap.utils.utils import aTimeCount, timeCount
+
 
 EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
 
@@ -8,8 +11,6 @@ EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
     todo: search git bare repo
     todo: normalize git path
 """
-
-
 def walk_dir(adir, maxlevels=10, quiet=0):
     if quiet < 2 and isinstance(adir, os.PathLike):
         adir = os.fspath(adir)
@@ -23,7 +24,7 @@ def walk_dir(adir, maxlevels=10, quiet=0):
         except OSError:
             if quiet < 2:
                 print("Can't list {!r}".format(adir))
-            names = []  # yield return
+            names = [] # yield return
         if ".git" in names and os.path.isdir(os.path.join(adir, ".git")):
             yield adir
         else:
@@ -36,24 +37,36 @@ def walk_dir(adir, maxlevels=10, quiet=0):
                 else:
                     dfile = None
                 if os.path.isdir(fullname) and (maxlevels > 0 and name != os.curdir and name != os.pardir
-                                                and not os.path.islink(fullname)):
+                        and not os.path.islink(fullname)):          
                     yield from _walk_dir(fullname,
-                                         ddir=dfile,
-                                         maxlevels=maxlevels - 1,
-                                         quiet=quiet)
+                                            ddir=dfile,
+                                            maxlevels=maxlevels - 1,
+                                            quiet=quiet)
 
     yield from _walk_dir(adir, None, maxlevels=maxlevels, quiet=quiet)
 
 
-def path2gitrepo(pth):
+async def path2gitrepo(pth):
     cmd = ["git", "-C", pth, "remote", "-v"]
-    ret = subprocess.run(cmd, stdout=subprocess.PIPE)
-    # print(ret)
-    if ret.returncode == 0:
-        sp = ret.stdout.split()
-        if len(sp) > 1:
-            return sp[1].decode('utf-8')
+    # ret.returncode==0:
 
+    # Create the subprocess, redirect the standard output into a pipe
+    create = asyncio.create_subprocess_exec(*cmd,
+                                            stdout=asyncio.subprocess.PIPE)
+    proc = await create
+    # Read one line of output
+    data = await proc.stdout.readline()
+    sp = data.split()
+    if len(sp) > 1:
+        remote = sp[1].decode('utf-8')
+    else:
+        remote = None
+
+    await proc.wait()
+    return remote
+
+async def wrap(p):
+    return {"path": p, "remote": await path2gitrepo(p)}
 
 def parse_args(cmd=None):
     import argparse
@@ -62,17 +75,19 @@ def parse_args(cmd=None):
     parser.add_argument('--output', '-o', help='output file')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose')
     parser.add_argument('--maxlevels', '-ml', default=10, help='max levels')
-
+    
     args = parser.parse_args(cmd)
     return args
 
-
-@timeCount
-def main(cmd=None):
+@aTimeCount
+async def main(cmd=None):
     args = parse_args(cmd)
     lst = walk_dir(args.target, maxlevels=args.maxlevels)
+    # print(list(lst))
+    # return
     if args.verbose:
-        ret = [{"path": p, "remote": path2gitrepo(p)} for p in lst]
+        # ret = [{"path": p, "remote": await path2gitrepo(p)} for p in lst]        
+        ret = await asyncio.gather(*[wrap(p) for p in lst])
     else:
         ret = list(lst)
 
@@ -81,8 +96,16 @@ def main(cmd=None):
         with open(args.output, 'w', encoding='utf-8') as fp:
             json.dump(ret, fp, indent=2, ensure_ascii=False)
     else:
-        print(ret)
+        pass #print(ret)
 
 
 if __name__ == "__main__":
-    main()
+    if sys.platform == "win32":
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+    else:
+        loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.gather(
+        main(),
+    ))
+    loop.close()
