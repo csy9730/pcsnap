@@ -11,3 +11,5 @@ __pycached__/
 tmp/
 bak/
 temp/
+
+data/

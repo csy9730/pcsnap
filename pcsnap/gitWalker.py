@@ -50,9 +50,21 @@ def path2gitrepo(pth):
     ret = subprocess.run(cmd, stdout=subprocess.PIPE)
     # print(ret)
     if ret.returncode == 0:
-        sp = ret.stdout.split()
-        if len(sp) > 1:
-            return sp[1].decode('utf-8')
+        return parseRemote(ret.stdout)
+
+
+def parseRemote(ss):
+    ssp = ss.split(b'\n')
+    rm = set()
+    if ssp:
+        for s in ssp:
+            sp = s.split()
+            if len(sp) > 1:
+                rm.add(sp[1].decode('utf-8'))
+        return list(rm)
+    else:
+        return []
+    
 
 
 def parse_args(cmd=None):

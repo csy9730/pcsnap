@@ -2,8 +2,10 @@ import os
 import sys
 import subprocess
 import asyncio
+import json
 from pcsnap.utils.utils import aTimeCount, timeCount
 
+from pathlib import PurePosixPath, Path
 
 EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
 
@@ -11,13 +13,13 @@ EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
     todo: search git bare repo
     todo: normalize git path
 """
-def walk_dir(adir, maxlevels=10, quiet=0):
+def walk_dir(adir, maxlevels=10, quiet=0, use_posix_path=None):
     if quiet < 2 and isinstance(adir, os.PathLike):
         adir = os.fspath(adir)
     if not quiet:
         print('Listing {!r}...'.format(adir))
 
-    def _walk_dir(adir, ddir=None, maxlevels=10, quiet=0):
+    def _walk_dir(adir, ddir=None, maxlevels=10):
         try:
             names = os.listdir(adir)
             names.sort()
@@ -26,6 +28,8 @@ def walk_dir(adir, maxlevels=10, quiet=0):
                 print("Can't list {!r}".format(adir))
             names = [] # yield return
         if ".git" in names and os.path.isdir(os.path.join(adir, ".git")):
+            if use_posix_path:
+                adir = str(PurePosixPath(Path(adir)))
             yield adir
         else:
             for name in names:
@@ -40,10 +44,9 @@ def walk_dir(adir, maxlevels=10, quiet=0):
                         and not os.path.islink(fullname)):          
                     yield from _walk_dir(fullname,
                                             ddir=dfile,
-                                            maxlevels=maxlevels - 1,
-                                            quiet=quiet)
+                                            maxlevels=maxlevels - 1)
 
-    yield from _walk_dir(adir, None, maxlevels=maxlevels, quiet=quiet)
+    yield from _walk_dir(adir, None, maxlevels=maxlevels)
 
 
 async def path2gitrepo(pth):
@@ -55,15 +58,24 @@ async def path2gitrepo(pth):
                                             stdout=asyncio.subprocess.PIPE)
     proc = await create
     # Read one line of output
-    data = await proc.stdout.readline()
-    sp = data.split()
-    if len(sp) > 1:
-        remote = sp[1].decode('utf-8')
-    else:
-        remote = None
-
+    data = await proc.stdout.read()
+    remote = parseRemote(data)
     await proc.wait()
     return remote
+
+
+def parseRemote(ss):
+    ssp = ss.split(b'\n')
+    rm = set()
+    if ssp:
+        for s in ssp:
+            sp = s.split()
+            if len(sp) > 1:
+                rm.add(sp[1].decode('utf-8'))
+        return list(rm)
+    else:
+        return []
+
 
 async def wrap(p):
     return {"path": p, "remote": await path2gitrepo(p)}
@@ -75,14 +87,14 @@ def parse_args(cmd=None):
     parser.add_argument('--output', '-o', help='output file')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose')
     parser.add_argument('--maxlevels', '-ml', default=10, help='max levels')
-    
+    parser.add_argument('--posix-path', action='store_true', help='max levels')
     args = parser.parse_args(cmd)
     return args
 
 @aTimeCount
 async def main(cmd=None):
     args = parse_args(cmd)
-    lst = walk_dir(args.target, maxlevels=args.maxlevels)
+    lst = walk_dir(args.target, maxlevels=args.maxlevels, use_posix_path=args.posix_path)
     # print(list(lst))
     # return
     if args.verbose:
@@ -92,11 +104,11 @@ async def main(cmd=None):
         ret = list(lst)
 
     if args.output:
-        import json
+        
         with open(args.output, 'w', encoding='utf-8') as fp:
             json.dump(ret, fp, indent=2, ensure_ascii=False)
     else:
-        pass #print(ret)
+        print(json.dumps(ret, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
