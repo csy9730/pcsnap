@@ -1,6 +1,6 @@
 import os
 import sys
-import subprocess
+import os.path as osp
 import asyncio
 import json
 from pcsnap.utils.utils import aTimeCount, timeCount
@@ -8,10 +8,16 @@ from pcsnap.utils.utils import aTimeCount, timeCount
 from pathlib import PurePosixPath, Path
 
 EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
+g_dry_run = False
+
 
 """
     todo
     
+    * add: add init/ status
+    * add: push /pull
+
+    * add: filter 
     * add: search git bare repo, subtree/submodule
     * add: status, clone, pull, push
     * add: git status & git log 
@@ -99,10 +105,34 @@ async def getGitLog(pth):
     return remote
 
 
+def isGitRepo():
+    if osp.exists(pth):
+        lst = os.listdir()
+        if ".git" in lst:
+            return True
+
+
 async def gitClone(pth, repo):
-    # os.listdir()
-    cmd = ["git", "-C", pth, "clone", repo, "."]
+    if osp.exists(pth):
+        lst = os.listdir()
+        if lst:
+            if ".git" in lst:
+                return ""
+            else:
+                return ""
+    if not repo:
+        return
+
+    if isinstance(repo, list):
+        repo = repo[0]
+    [f1, f2] = osp.split(pth)
+    if not osp.exists(f1):
+        os.makedirs(f1)
+    cmd = ["git", "-C", f1, "clone", repo, f2]
+    print(cmd)
     # ret.returncode==0:
+    if g_dry_run:
+        return
 
     # Create the subprocess, redirect the standard output into a pipe
     create = asyncio.create_subprocess_exec(*cmd,
@@ -112,6 +142,7 @@ async def gitClone(pth, repo):
     remote = parseStatus(data)
     await proc.wait()
     return remote
+
 
 def parseRemote(ss):
     ssp = ss.split(b'\n')
@@ -152,16 +183,21 @@ def parse_args(cmd=None):
 
     parser_s.set_defaults(handle=gitwalker_status)
 
-    parser_s = subparsers.add_parser('clone', help='a help')
-    parser_s.set_defaults(handle=gitwalker_clone)
-    parser_s.add_argument('--submodule', help='submodule file')
-
+    parser_c = subparsers.add_parser('clone', help='a help')
+    parser_c.add_argument('--submodule', help='submodule file')
+    parser_c.add_argument('--dry-run', action="store_true", help='dry_run')
+    parser_c.add_argument('--exclude', action="append", help='exclude str')
+    parser_c.add_argument('--include', action="append", help='include str')
+    parser_c.set_defaults(handle=gitwalker_clone)
 
     parser_s = subparsers.add_parser('pull', help='a help')
     parser_s.set_defaults(handle=gitwalker_pull)
 
     parser_s = subparsers.add_parser('push', help='a help')
     parser_s.set_defaults(handle=gitwalker_push)
+
+    parser_s = subparsers.add_parser('init', help='a help')
+    parser_s.set_defaults(handle=gitwalker_init)
 
     args = parser.parse_args(cmd)
 
@@ -186,7 +222,6 @@ async def gitwalker_status(args):
             return {"path": p, "remote": await path2gitrepo(p), "status": await getGitStatus(p), "remoteLog": await getGitLog(p)}
         ret = await asyncio.gather(*[_wrap2(p) for p in lst])
         
-
     if args.output:        
         with open(args.output, 'w', encoding='utf-8') as fp:
             json.dump(ret, fp, indent=2, ensure_ascii=False)
@@ -195,15 +230,28 @@ async def gitwalker_status(args):
 
 
 async def gitwalker_clone(args):
-    args.submodule
     if not os.path.exists(args.submodule):
         raise FileNotFoundError
+
+    global g_dry_run
+    g_dry_run = args.dry_run
+
+    def filterPath(pth):
+        if args.include:
+            for s in args.include:
+                if s in pth:
+                    return True
+            return False
+        if args.exclude:
+            for s in args.exclude:
+                if s in pth:
+                    return False 
+            return True
+        return True
+
     with open(args.submodule, "r") as fp:
         dct = json.load(fp)
-        for d in dct:
-            ret = await asyncio.gather(*[gitClone(d["path"], d["remote"]) for d in dct])
-
-
+        await asyncio.wait([gitClone(d["path"], d["remote"]) for d in dct if filterPath(d['path'])])
 
 
 async def gitwalker_pull(args):
@@ -213,6 +261,8 @@ async def gitwalker_pull(args):
 async def gitwalker_push(args):
     pass
 
+async def gitwalker_init(args):
+    pass
 
 @aTimeCount
 async def main(cmd=None):
