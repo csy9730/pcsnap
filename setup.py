@@ -29,8 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pcsnap=pcsnap.__main__:main',
-            'gitwalker=pcsnap.gitwalker:main'
+            'gitwalker=pcsnap.gitwalker2:main'
         ]
     }
-
 )

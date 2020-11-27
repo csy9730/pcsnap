@@ -9,7 +9,7 @@ from pathlib import PurePosixPath, Path
 
 EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
 g_dry_run = False
-
+GIT_WALKER = ".gitwalker.json"
 
 """
     todo
@@ -72,7 +72,7 @@ async def path2gitrepo(pth):
     proc = await create
     # Read one line of output
     data = await proc.stdout.read()
-    remote = parseRemote(data)
+    remote = parseRemote0(data)
     await proc.wait()
     return remote
 
@@ -88,6 +88,8 @@ async def getGitStatus(pth):
     data = await proc.stdout.read()
     remote = parseStatus(data)
     await proc.wait()
+    if remote:
+        print(pth, '\n', remote)
     return remote
 
 
@@ -144,6 +146,50 @@ async def gitClone(pth, repo):
     return remote
 
 
+async def gitPull(pth, repo):
+    if not osp.exists(pth):
+        print(pth, "not a path")
+        return
+        raise NotADirectoryError
+    cmd = ["git", "-C", pth, "pull"]
+    print(cmd)
+    # Create the subprocess, redirect the standard output into a pipe
+    create = asyncio.create_subprocess_exec(*cmd,
+                                            stdout=asyncio.subprocess.PIPE)
+    proc = await create
+    data = await proc.stdout.read()
+    remote = parseStatus(data)
+    await proc.wait()
+    return remote
+
+
+
+async def gitPush(pth, repo):
+    if not osp.exists(pth):
+        print(pth, "not a path")
+        return
+        raise NotADirectoryError
+    cmd = ["git", "-C", pth, "push"]
+    print(cmd)
+    # Create the subprocess, redirect the standard output into a pipe
+    create = asyncio.create_subprocess_exec(*cmd,
+                                            stdout=asyncio.subprocess.PIPE)
+    proc = await create
+    data = await proc.stdout.read()
+    remote = parseStatus(data)
+    await proc.wait()
+    return remote
+
+
+def parseRemote0(ss):
+    ssp = ss.split(b'\n')
+    if ssp:
+        for s in ssp:
+            sp = s.split()
+            if len(sp) > 1:
+                return sp[1].decode('utf-8')
+
+
 def parseRemote(ss):
     ssp = ss.split(b'\n')
     rm = set()
@@ -180,6 +226,8 @@ def parse_args(cmd=None):
     parser_s.add_argument('--verbose', '-v', const=None, action='append_const', default=[], help='verbose')
     parser_s.add_argument('--maxlevels', '-ml', default=10, help='max levels')
     parser_s.add_argument('--posix-path', action='store_true', help='max levels')
+    parser_s.add_argument('--exclude', action="append", help='exclude str')
+    parser_s.add_argument('--include', action="append", help='include str')
 
     parser_s.set_defaults(handle=gitwalker_status)
 
@@ -190,14 +238,23 @@ def parse_args(cmd=None):
     parser_c.add_argument('--include', action="append", help='include str')
     parser_c.set_defaults(handle=gitwalker_clone)
 
-    parser_s = subparsers.add_parser('pull', help='a help')
-    parser_s.set_defaults(handle=gitwalker_pull)
+    parser_l = subparsers.add_parser('pull', help='a help')
+    parser_l.add_argument('--exclude', action="append", help='exclude str')
+    parser_l.add_argument('--include', action="append", help='include str')
+    parser_l.set_defaults(handle=gitwalker_pull)
+    
+    parser_h = subparsers.add_parser('push', help='a help')
+    parser_h.add_argument('--exclude', action="append", help='exclude str')
+    parser_h.add_argument('--include', action="append", help='include str')
+    parser_h.set_defaults(handle=gitwalker_push)
 
-    parser_s = subparsers.add_parser('push', help='a help')
-    parser_s.set_defaults(handle=gitwalker_push)
-
-    parser_s = subparsers.add_parser('init', help='a help')
-    parser_s.set_defaults(handle=gitwalker_init)
+    parser_n = subparsers.add_parser('init', help='a help')
+    parser_n.add_argument('--maxlevels', '-ml', default=10, help='max levels')
+    parser_n.add_argument('--dry-run', action="store_true", help='include str')
+    parser_n.add_argument('--exclude', action="append", help='exclude str')
+    parser_n.add_argument('--include', action="append", help='include str')
+    parser_n.add_argument('--posix-path', action='store_true', help='max levels')
+    parser_n.set_defaults(handle=gitwalker_init)
 
     args = parser.parse_args(cmd)
 
@@ -207,35 +264,64 @@ def parse_args(cmd=None):
     return args, parser
 
 
-async def gitwalker_status(args):
+async def gitwalker_init(args):
     lst = walk_dir(args.target, maxlevels=args.maxlevels, use_posix_path=args.posix_path)
-    if args.verbose==0:
-        ret = list(lst)
   
-    elif args.verbose == 1:
-        # ret = [{"path": p, "remote": await path2gitrepo(p)} for p in lst]   
-        async def _wrap(p):
-            return {"path": p, "remote": await path2gitrepo(p)}
-        ret = await asyncio.gather(*[_wrap(p) for p in lst])
-    else:
-        async def _wrap2(p):
-            return {"path": p, "remote": await path2gitrepo(p), "status": await getGitStatus(p), "remoteLog": await getGitLog(p)}
-        ret = await asyncio.gather(*[_wrap2(p) for p in lst])
+    async def _wrap(p):
+        return {"path": p, "remote": await path2gitrepo(p)}
+    ret = await asyncio.gather(*[_wrap(p) for p in lst])
+
         
-    if args.output:        
-        with open(args.output, 'w', encoding='utf-8') as fp:
-            json.dump(ret, fp, indent=2, ensure_ascii=False)
-    else:
+    if args.dry_run:
         print(json.dumps(ret, indent=2, ensure_ascii=False))
+    else:
+        with open(GIT_WALKER, 'w', encoding='utf-8') as fp:
+            json.dump(ret, fp, indent=2, ensure_ascii=False)
+
+
+def _getFirst(arg):
+    if isinstance(arg, list) or hasattr(arg, '__iter__'):
+        for x in arg:
+            return x
+        return None
+    else:
+        return args
+
+
+async def gitwalker_status(args):
+    if not osp.exists(GIT_WALKER):
+        raise FileNotFoundError
+
+    with open(GIT_WALKER, "r") as fp:
+        dct = json.load(fp)
+
+        def filterPath(pth):
+            if args.include:
+                for s in args.include:
+                    if s in pth:
+                        return True
+                return False
+            if args.exclude:
+                for s in args.exclude:
+                    if s in pth:
+                        return False 
+                return True
+            return True
+
+        if args.verbose:
+            async def _wrap(d):
+                p = d['path']                
+                await getGitStatus(p)
+                if d['remote']:
+                    log = await getGitLog(p)
+                    print(log)
+
+            await asyncio.wait([_wrap(d) for d in dct if filterPath(d['path'])])
+        else:
+            await asyncio.wait([getGitStatus(d['path']) for d in dct if filterPath(d['path'])])
 
 
 async def gitwalker_clone(args):
-    if not os.path.exists(args.submodule):
-        raise FileNotFoundError
-
-    global g_dry_run
-    g_dry_run = args.dry_run
-
     def filterPath(pth):
         if args.include:
             for s in args.include:
@@ -249,20 +335,64 @@ async def gitwalker_clone(args):
             return True
         return True
 
-    with open(args.submodule, "r") as fp:
+
+    gitw = GIT_WALKER
+    if not os.path.exists(gitw):
+        raise FileNotFoundError
+
+    global g_dry_run
+    g_dry_run = args.dry_run
+    
+    with open(gitw, "r") as fp:
         dct = json.load(fp)
         await asyncio.wait([gitClone(d["path"], d["remote"]) for d in dct if filterPath(d['path'])])
 
 
 async def gitwalker_pull(args):
-    pass
+    def filterPath(pth):
+        if args.include:
+            for s in args.include:
+                if s in pth:
+                    return True
+            return False
+        if args.exclude:
+            for s in args.exclude:
+                if s in pth:
+                    return False 
+            return True
+        return True
+
+    gitw = GIT_WALKER
+    if not os.path.exists(gitw):
+        raise FileNotFoundError
+    
+    with open(gitw, "r") as fp:
+        dct = json.load(fp)
+        await asyncio.wait([gitPull(d["path"], d["remote"]) for d in dct if filterPath(d['remote'])])
 
 
 async def gitwalker_push(args):
-    pass
+    def filterPath(pth):
+        if args.include:
+            for s in args.include:
+                if s in pth:
+                    return True
+            return False
+        if args.exclude:
+            for s in args.exclude:
+                if s in pth:
+                    return False 
+            return True
+        return True
 
-async def gitwalker_init(args):
-    pass
+    gitw = GIT_WALKER
+    if not os.path.exists(gitw):
+        raise FileNotFoundError
+    
+    with open(gitw, "r") as fp:
+        dct = json.load(fp)
+        await asyncio.wait([gitPush(d["path"], d["remote"]) for d in dct if filterPath(d['remote'])])
+
 
 @aTimeCount
 async def main(cmd=None):
