@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, create_engine, Boolean,Float
+from sqlalchemy import Column, String, Integer, create_engine, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
@@ -6,8 +6,9 @@ from sqlalchemy.schema import ForeignKey  # , relationship
 import time
 import psutil
 import json
-Base = declarative_base()
 
+Base = declarative_base()
+DB = 'sqlite:///tasklists.db'
 
 """
 外键/表关系都是虚的，不会实际反映到数据库表上。
@@ -18,13 +19,17 @@ relationship 可以描述两个表的关系，因为表关系对偶，只要可�
 正向查询： 从多所在的表格查询 1所在的表格，
 反向查询： 从一所在的表格查询 多所在的表格（因为会返回列表，所以需要注意性能）
 """
+
+
 class Exe(Base):
     __tablename__ = 'exes'
     id = Column(Integer, primary_key=True)
-    exe = Column(String(60))
+    name = Column(String(60))
     procs = relationship("Process", backref='exe', lazy='dynamic')
+
     def __repr__(self):
-        return '<Exe %s_%s %s>' % (self.id, self.exe)
+        return '<Exe %s %s>' % (self.id, self.name)
+
 
 class Process(Base):
     __tablename__ = 'process'
@@ -69,10 +74,10 @@ def addProcessLog(DBSession, tasklist):
     dt = int(time.time())
     for s in tasklist:
         try:
-            exe= s.exe()
-            fExe = session.query(Exe).filter_by(exe=exe).first()
+            exe = s.exe()
+            fExe = session.query(Exe).filter_by(name=exe).first()
             if not fExe:
-                fExe = Exe(exe=exe)
+                fExe = Exe(name=exe)
                 session.add(fExe)
 
             ctm = int(s.create_time())
@@ -88,16 +93,96 @@ def addProcessLog(DBSession, tasklist):
             fProc.logs.append(pl)
             session.add(fProc)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            print(s)
+            pass
+            # print(s)
 
     session.commit()
 
 
-def main():
-    engine = createDb()
+def initDb(args):
+    engine = create_engine(DB)
+    # engine = create_engine('sqlite:///foo.db?check_same_thread=False', echo=True)
+    # if not os.path.exists('data.sqlite'):
+    #     db.create_all()
+    # # db.drop_all()
+    Base.metadata.create_all(engine, checkfirst=True)
+    return engine
+
+
+def watchDb(args):
+    engine = create_engine(DB)
     DBSession = sessionmaker(bind=engine)
-    addProcessLog(DBSession, psutil.process_iter(['pid', 'ppid', 'cmdline', 'name', 'username']))
-    
+    if args.loop:
+        while 1:
+            print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+            addProcessLog(DBSession, psutil.process_iter(['pid', 'ppid', 'cmdline', 'name', 'username']))
+            time.sleep(args.interval)
+    else:
+        addProcessLog(DBSession, psutil.process_iter(['pid', 'ppid', 'cmdline', 'name', 'username']))
+
+
+def showDb(args):
+    engine = create_engine(DB)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    if args.word == 'recent_proc':
+        lst = session.query(Process).filter_by(is_live=True).order_by(Process.create_time.desc()).limit(args.page_size)
+        for s in lst:
+            _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.create_time))
+            print(s.pid, s.exe.name, _dt)
+    elif args.word == 'recent_dead_proc':
+        lst = session.query(Process).filter_by(is_live=False).order_by(Process.create_time.desc()).limit(args.page_size)
+        for s in lst:
+            _dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
+            print(s.pid, s.exe.name, _dt)
+        # print(lst)
+        # session.query(Exe).filter_by(exe=exe).first()
+    session.close()
+    # procs
+
+"""
+    最高访问次数的exe， 全部/当天/当月
+    最高存活时间的exe， 全部/当天/当月
+
+    最近打开的进程
+    最近关闭的进程
+
+
+    top 10 / sorter
+        /  filter
+        / grouper
+
+
+"""
+
+def parse_args(cmd=None):
+    import argparse
+    parser = argparse.ArgumentParser(description='')
+    # parser.add_argument('--gpu-on',default = False,action="store_true",help ="flag to use gpu ,default to use cpu")
+    subparsers = parser.add_subparsers(help='sub-command help')
+    parserT = subparsers.add_parser('init', help='init database')
+    parserT.set_defaults(handle=initDb)
+
+    parserW = subparsers.add_parser('watch', help='fill data to database')
+    parserW.add_argument('--loop', '-l', action='store_true')
+    parserW.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
+    parserW.set_defaults(handle=watchDb)
+
+    parserS = subparsers.add_parser('show', help='show database')
+    parserS.add_argument('word')
+    parserS.add_argument('--page-size', '-ps', type=int, default=10)
+    #  .offset((page_index-1)*page_size)
+    parserS.set_defaults(handle=showDb)
+
+    args = parser.parse_args(cmd)
+    return args
+
+
+def main(cmd=None):
+    args = parse_args(cmd)
+    if hasattr(args, 'handle'):
+        args.handle(args) 
+
 
 def psutilDemo():
     p = psutil.Process()
@@ -116,53 +201,50 @@ def psutilDemo():
         p.cmdline()
     """
 
-def createDb():
-    engine = create_engine('sqlite:///tasklists.db')
-    # engine = create_engine('sqlite:///foo.db?check_same_thread=False', echo=True)
-    # if not os.path.exists('data.sqlite'):
-    #     db.create_all()
-    # # db.drop_all()
-    Base.metadata.create_all(engine, checkfirst=True)
-    return engine
-
-
-def insertData(DBSession):
-    session = DBSession()
-    a_user = Process(name='Allice', pid=2)
-    session.add(a_user)
-    session.commit()
-    session.close()
-
-
-def insertData2(DBSession):
-    session = DBSession()
-    a_user = Process(name='Caddy', pid=13)
-    a_log = Processlog(use_cpu=5)
-    a_user.logs.append(a_log)
-    session.add(a_log)
-    session.add(a_user)
-    session.commit()
-    session.close()
-
-
-def queryData(session):
-    # 字符串匹配方式筛选条件 并使用 order_by进行排序
-    session = DBSession()
-    r6 = session.query(Process).all()
-    print(r6)
-    session.close()
-
-
-def queryData2(DBSession):
-    # 字符串匹配方式筛选条件 并使用 order_by进行排序
-    session = DBSession()
-    r = session.query(Process).all()
-    print(r)
-    r6 = session.query(Processlog).all()
-    print(r6)
-    session.close()
 
 def sqlDemo():
+    def createDb():
+        engine = create_engine(DB)
+        # engine = create_engine('sqlite:///foo.db?check_same_thread=False', echo=True)
+        # if not os.path.exists('data.sqlite'):
+        #     db.create_all()
+        # # db.drop_all()
+        Base.metadata.create_all(engine, checkfirst=True)
+        return engine
+
+    def insertData(DBSession):
+        session = DBSession()
+        a_user = Process(name='Allice', pid=2)
+        session.add(a_user)
+        session.commit()
+        session.close()
+
+    def insertData2(DBSession):
+        session = DBSession()
+        a_user = Process(name='Caddy', pid=13)
+        a_log = Processlog(use_cpu=5)
+        a_user.logs.append(a_log)
+        session.add(a_log)
+        session.add(a_user)
+        session.commit()
+        session.close()
+
+    def queryData(DBSession):
+        # 字符串匹配方式筛选条件 并使用 order_by进行排序
+        session = DBSession()
+        r6 = session.query(Process).all()
+        print(r6)
+        session.close()
+
+    def queryData2(DBSession):
+        # 字符串匹配方式筛选条件 并使用 order_by进行排序
+        session = DBSession()
+        r = session.query(Process).all()
+        print(r)
+        r6 = session.query(Processlog).all()
+        print(r6)
+        session.close()
+
     engine = createDb()
     DBSession = sessionmaker(bind=engine)
     insertData(DBSession)
@@ -178,4 +260,3 @@ def sqlDemo():
 if __name__ == "__main__":
     # sqlDemo()
     main()
-
