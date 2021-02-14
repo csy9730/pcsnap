@@ -13,6 +13,11 @@ from sqlalchemy.schema import ForeignKey  # , relationship
 Base = declarative_base()
 DB = 'sqlite:///tieba_watcher.db'
 
+# @todo
+#   remove 主题作者
+#   add tieziUser
+
+
 class Tiezi(Base):
     __tablename__ = 'tiezi'
 
@@ -21,17 +26,29 @@ class Tiezi(Base):
     title = Column(String(60))
     href = Column(String(258))
     author = Column(String(60))
+    content = Column(String(2120), nullable=True)
+    createTime = Column(String(60), nullable=True)
+    logs = relationship("Tiezilog", backref='tie', lazy='dynamic')
+
+    def __repr__(self):
+        return '<Exe %s %s>' % (self.id, self.title)
+
+
+class Tiezilog(Base):
+    __tablename__ = 'tiezilog'
+    id = Column(Integer, primary_key=True)
 
     replyAuthor = Column(String(60))
     is_live = Column(Boolean, default=True)
     pointNum = Column(Integer, nullable=True)
     layerNum = Column(Integer, nullable=True)
-    createTime = Column(String(60))
-    replyDate = Column(String(60))
-    updateDate = Column(String(60))
+    replyDate = Column(String(60), nullable=True)
+    updateDate = Column(Integer, nullable=True)
+
+    tiezi_id = Column(Integer, ForeignKey("tiezi.id"))
 
     def __repr__(self):
-        return '<Exe %s %s>' % (self.id, self.title)
+        return '<Tiezilog %s %s>' % (self.tie.name)
 
 
 class Tieuser(Base):
@@ -51,19 +68,29 @@ def initDb(args):
 
 def addProcessLog(DBSession, tasklist):
     session = DBSession()
-    qAlv = session.query(Tiezi).filter_by(is_live=True)
+    qAlv = session.query(Tiezilog).filter_by(is_live=True)
     alvs = qAlv.all()
     for s in alvs:
         s.is_live = False
     print(len(alvs))
-    # print(len(qAlv.all()))
 
     dt = int(time.time())
-    for s in tasklist:
-        tiezi = Tiezi(**s)
-        tiezi.is_live = True
-        session.add(tiezi)
 
+    for s in tasklist:    
+        s3 = {k:v for k,v in s.items() if k not in ["link", "title", "href", "author", "content", "createTime"]}
+
+        tiezi = session.query(Tiezi).filter_by(link=s["link"]).first()
+        if not tiezi:
+            s2 = {k:v for k,v in s.items() if k in ["link", "title", "href", "author", "content", "createTime"]} 
+            tiezi = Tiezi(**s2)
+            session.add(tiezi)
+
+        pl = Tiezilog(updateDate=dt, **s3)
+        pl.is_live = True
+        tiezi.logs.append(pl)
+
+        session.add(tiezi)
+        session.add(pl)
     session.commit()
 
 
@@ -78,6 +105,13 @@ def watchDb(args):
             break
         time.sleep(args.interval)
 
+
+def getFirst(x):
+    if isinstance(x, list):
+        if x:
+            return x[0]
+        else:
+            return None
 
 def tb_crawl(url):
     import requests
@@ -131,6 +165,10 @@ def tb_crawl(url):
         try:
             item['href'] = url
             item['layerNum'] = ii + 1
+
+            # print(ii, tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0])
+            # exit(0)
+            # continue
             item['title'] =  tie.xpath("./div/div[2]/div[1]/div[1]/a/@title")[0]
             item['link'] = 'http://tieba.baidu.com/' + tie.xpath("./div/div[2]/div[1]/div[1]/a/@href")[0]
             item['author'] = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[0]
@@ -139,14 +177,17 @@ def tb_crawl(url):
             item['createTime'] = tie.xpath(".//span[@class='pull-right is_show_create_time']/text()")[0]
             # item['replyDate'] = re.findall('2', s[0])tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()").re('[0-9:\-]+')[0]
             item['replyDate'] = pat.findall(tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()")[0])[0]
+            item['content'] = tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0]
+
         except Exception as e:
+            print(e)
             continue
-        
+
         yield item
 
 
 def parse_args(cmd=None):
-    start_url = 'http://tieba.baidu.com/f?kw=python&ie=utf-8&pn=0'
+    start_url = 'http://tieba.baidu.com/f?kw=%s&ie=utf-8&pn=0' % "kpl"
     import argparse
     parser = argparse.ArgumentParser(prog='requests')
     subparsers = parser.add_subparsers(help='sub-command help')
