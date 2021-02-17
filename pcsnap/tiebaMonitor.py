@@ -12,10 +12,21 @@ from sqlalchemy.schema import ForeignKey  # , relationship
 
 Base = declarative_base()
 DB = 'sqlite:///tieba_watcher.db'
+# DB = 'mysql+pymysql://root:pass@localhost/tieba_watcher'
+
+DB_NAME = 'tiebawatcher'
+DB_USER = 'root'
+DB_PASSWD = '123456'
+DB_HOST = '127.0.0.1'
+DB_PORT = 3306
+DB = 'mysql+pymysql://%s:%s@%s:%s/%s?charset=utf8mb4' % (DB_USER, DB_PASSWD, DB_HOST, DB_PORT, DB_NAME)
+
 
 # @todo
 #   remove 主题作者
 #   add tieziUser
+# add mariadb
+# 
 
 
 class Tiezi(Base):
@@ -23,15 +34,15 @@ class Tiezi(Base):
 
     id = Column(Integer, primary_key=True)
     link = Column(String(2048))
-    title = Column(String(60))
+    title = Column(String(600))
     href = Column(String(258))
-    author = Column(String(60))
+    author = Column(String(160))
     content = Column(String(2120), nullable=True)
     createTime = Column(String(60), nullable=True)
     logs = relationship("Tiezilog", backref='tie', lazy='dynamic')
 
     def __repr__(self):
-        return '<Exe %s %s>' % (self.id, self.title)
+        return '<tiezi %s %s>' % (self.id, self.title)
 
 
 class Tiezilog(Base):
@@ -62,7 +73,7 @@ class Tieuser(Base):
 
 def initDb(args):
     engine = create_engine(DB)
-    Base.metadata.create_all(engine, checkfirst=True)
+    Base.metadata.create_all(engine) # , checkfirst=True
     return engine
 
 
@@ -76,7 +87,7 @@ def addProcessLog(DBSession, tasklist):
 
     dt = int(time.time())
 
-    for s in tasklist:    
+    for s in tasklist:
         s3 = {k:v for k,v in s.items() if k not in ["link", "title", "href", "author", "content", "createTime"]}
 
         tiezi = session.query(Tiezi).filter_by(link=s["link"]).first()
@@ -112,6 +123,20 @@ def getFirst(x):
             return x[0]
         else:
             return None
+
+
+def removeEmoji0(x):
+    # highpoints = re.compile(u'[\uD800-\uDBFF][\uDC00-\uDFFF]')
+    highpoints = re.compile(u'[\U00010000-\U0010ffff]')
+    x2 = highpoints.sub(u'', x)
+    return x2
+
+
+def removeEmoji(x):
+    import emoji
+    x = removeEmoji0(emoji.demojize(x))
+    return re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', x)
+
 
 def tb_crawl(url):
     import requests
@@ -158,6 +183,7 @@ def tb_crawl(url):
     # allTie = sector.xpath("//ul[@id='thread_list']/li[@class='j_thread_list clearfix']")
     # $x('//ul[@id="thread_list"]')
     allTie = sector.xpath("//ul[@id='thread_list']//li[@class=' j_thread_list clearfix thread_item_box']")
+    allTie.reverse()
 
     pat = re.compile(r'[0-9:\-]+')
     for ii, tie in enumerate(allTie):
@@ -166,18 +192,27 @@ def tb_crawl(url):
             item['href'] = url
             item['layerNum'] = ii + 1
 
+            import base64
+            author = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[0].lstrip("主题作者: ")
+            
+            bAuthor = base64.b64encode( str(author).encode('utf-8'))
+            author2 = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[1].lstrip("最后回复人: ")
+            bAuthor2 = base64.b64encode(str(author2).encode('utf-8'))
+            print([author, author2])
+            # print(bAuthor, bAuthor2)
+
             # print(ii, tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0])
             # exit(0)
             # continue
-            item['title'] =  tie.xpath("./div/div[2]/div[1]/div[1]/a/@title")[0]
+            item['title'] =  removeEmoji(tie.xpath("./div/div[2]/div[1]/div[1]/a/@title")[0])
             item['link'] = 'http://tieba.baidu.com/' + tie.xpath("./div/div[2]/div[1]/div[1]/a/@href")[0]
-            item['author'] = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[0]
+            item['author'] = bAuthor # removeEmoji(tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[0])
             item['pointNum'] = tie.xpath(".//div[@class ='col2_left j_threadlist_li_left']/span[@class='threadlist_rep_num center_text']/text()")[0]
-            item['replyAuthor'] = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[1]
+            item['replyAuthor'] = bAuthor2 # removeEmoji(tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[1])
             item['createTime'] = tie.xpath(".//span[@class='pull-right is_show_create_time']/text()")[0]
             # item['replyDate'] = re.findall('2', s[0])tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()").re('[0-9:\-]+')[0]
             item['replyDate'] = pat.findall(tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()")[0])[0]
-            item['content'] = tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0]
+            item['content'] = removeEmoji(tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0])
 
         except Exception as e:
             print(e)
@@ -199,6 +234,12 @@ def parse_args(cmd=None):
     parserW.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
     parserW.add_argument('--url', default=start_url)
     parserW.set_defaults(handle=watchDb)
+    args  = parser.parse_args(cmd)
+
+    parserH = subparsers.add_parser('serve', help='fill data to database')
+    parserH.add_argument('--port', default=5050)
+    parserH.add_argument('--bind', default='0.0.0.0')
+    parserH.set_defaults(handle=watchDb)
     args  = parser.parse_args(cmd)
     return args
 
