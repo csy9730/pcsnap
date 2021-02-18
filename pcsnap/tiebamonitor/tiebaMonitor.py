@@ -8,25 +8,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
-
+from config import DB
 
 Base = declarative_base()
-DB = 'sqlite:///tieba_watcher.db'
-# DB = 'mysql+pymysql://root:pass@localhost/tieba_watcher'
-
-DB_NAME = 'tiebawatcher'
-DB_USER = 'root'
-DB_PASSWD = '123456'
-DB_HOST = '127.0.0.1'
-DB_PORT = 3306
-DB = 'mysql+pymysql://%s:%s@%s:%s/%s?charset=utf8mb4' % (DB_USER, DB_PASSWD, DB_HOST, DB_PORT, DB_NAME)
-
-
-# @todo
-#   remove 主题作者
-#   add tieziUser
-# add mariadb
-# 
 
 
 class Tiezi(Base):
@@ -162,6 +146,9 @@ def tb_crawl(url):
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.146 Safari/537.36"}
     response = requests.get(url, headers=headers)
 
+    with  open('page_bak.html', 'w', encoding='utf-8') as fw:  
+        fw.write(response.text)
+
     # doc = response.text
     # sector=etree.HTML(doc)
     if response.status_code != 200:
@@ -199,8 +186,8 @@ def tb_crawl(url):
             author2 = tie.xpath(".//div[@class='threadlist_author pull_right']//span[contains(@class,'tb_icon_author')]/@title")[1].lstrip("最后回复人: ")
             bAuthor2 = base64.b64encode(str(author2).encode('utf-8'))
             print([author, author2])
+            # print( tie.xpath("//span[@class='createtimecsss']/text()"))
             # print(bAuthor, bAuthor2)
-
             # print(ii, tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0])
             # exit(0)
             # continue
@@ -213,7 +200,7 @@ def tb_crawl(url):
             # item['replyDate'] = re.findall('2', s[0])tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()").re('[0-9:\-]+')[0]
             item['replyDate'] = pat.findall(tie.xpath(".//span[@class='threadlist_reply_date pull_right j_reply_data']/text()")[0])[0]
             item['content'] = removeEmoji(tie.xpath(".//div[@class='threadlist_text pull_left']/div/text()")[0])
-
+            # item['createTime'] = tie.xpath(".//span[@class='createtimecsss'/text()")[0]
         except Exception as e:
             print(e)
             continue
@@ -222,7 +209,7 @@ def tb_crawl(url):
 
 
 def parse_args(cmd=None):
-    start_url = 'http://tieba.baidu.com/f?kw=%s&ie=utf-8&pn=0' % "kpl"
+    start_url = 'http://tieba.baidu.com/f?kw=%s&ie=utf-8&pn=0' % "python"
     import argparse
     parser = argparse.ArgumentParser(prog='requests')
     subparsers = parser.add_subparsers(help='sub-command help')

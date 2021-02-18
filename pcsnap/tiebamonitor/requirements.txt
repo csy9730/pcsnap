@@ -1,3 +1,10 @@
 emoji
 flask
-
+Flask-Bootstrap
+flask-sqlalchemy
+flask-moment
+pymysql
+requests
+lxml
+cryptography # pymysql
+# cssselect

@@ -12,6 +12,7 @@
       <th>content</th>
       <th>author</th>
       <th>pointNum</th>
+      <th>reply</th>
     </thead>
     <tbody>
       <meta charset="UTF-8">
@@ -23,12 +24,13 @@
         <td>{{ tz.content}}</td>
         <td>{{ tz.author2}}</td>
         <td>{{ tz.pointNum}}</td>
+        <td>{{ tz.author4}}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% import 'utils/paging.html' as pg %}
-  {{ pg.page(paginate, "tiezi") }}
+  {{ pg.page(paginate, "tiezi_top") }}
 
 </div>
 {% endblock %}

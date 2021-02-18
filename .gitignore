@@ -6,6 +6,7 @@ __pycached__/
 .vscode/
 *.egg-info/
 
+migrations/
 
 .snapmgr/
 tmp/

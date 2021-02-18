@@ -24,6 +24,7 @@ class Tiezi(Base):
     content = Column(String(2120), nullable=True)
     createTime = Column(String(60), nullable=True)
     logs = relationship("Tiezilog", backref='tie', lazy='dynamic')
+    # curent_log = relationship('Tiezilog', back_populates='tiez', uselist=False, remote_side=[id], lazy='dynamic')
 
     def __repr__(self):
         return '<Tiezi %s %s>' % (self.id, self.title)
@@ -43,7 +44,7 @@ class Tiezilog(Base):
     tiezi_id = Column(Integer, ForeignKey("tiezi.id"))
 
     def __repr__(self):
-        return '<Tiezilog %s %s>' % (self.tie.title, self.updateDate)
+        return '<Tiezilog %s %s %s>' % (self.tie.title, self.updateDate, self.tiezi_id)
 
 
 class Tieuser(Base):
