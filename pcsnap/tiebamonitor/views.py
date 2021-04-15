@@ -6,7 +6,7 @@ from flask import request, Response, flash
 from myapp import app, db
 from models import Tiezi, Tiezilog
 from sqlalchemy import func
-
+from argparse import Namespace
 
 
 # 定义路由
@@ -20,6 +20,23 @@ def index():
 def about():
     return render_template("about.html")
 
+# jobs = [{"title": "tieba", "content":"content", "link": "/jobs/tieba", "createTime": "20210401"}]
+
+@app.route('/jobs')
+def jobs():
+    jobs= [Namespace(title="tieba", content="content", link="/jobs/tieba", createTime="20210401")]
+    return render_template("jobs.html", jobs=jobs)
+
+
+@app.route('/jobs/tieba')
+def jobs_tieba():
+    start_url = 'http://tieba.baidu.com/f?kw=%s&ie=utf-8&pn=0' % "python"
+    from tiebaMonitor import watchDb
+    jobs= [Namespace(title="tieba", content="content", link="/jobs/tieba", createTime="20210401")]
+    args = Namespace(url=start_url, loop=False, interval=600)
+    watchDb(args)
+    return render_template("jobs.html", jobs=jobs)
+
 
 @app.route('/tiezi', methods=['GET', 'POST'])
 def tiezi():
@@ -31,8 +48,11 @@ def tiezi():
     print(tzs)
     for tz in tzs:
         print(tz.logs[-1])
-        tz.author2 = base64toUtf8(tz.author)
-        tz.pointNum = tz.logs[-1].pointNum
+        try:
+            tz.author2 = base64toUtf8(tz.author)
+            tz.pointNum = tz.logs[-1].pointNum
+        except Exception as e:
+            print(e)
     # Login.query.filter_by(user_id=current_user.id).order_by('id')
     return render_template("tiezi.html", paginate=p, tiezis=tzs)
 
@@ -50,10 +70,13 @@ def tiezi_top():
     for pointNum, tlog in tzs:
         # print(tz.logs[-1])
         tz = tlog.tie
-        tz.author2 = base64toUtf8(tz.author)
-        tz.author4 = base64toUtf8(tlog.replyAuthor)
-        tz.pointNum = pointNum
-        tzs2.append(tz)
+        try:
+            tz.author2 = base64toUtf8(tz.author)
+            tz.author4 = base64toUtf8(tlog.replyAuthor)
+            tz.pointNum = pointNum
+            tzs2.append(tz)
+        except Exception as e:
+            print(e)
     return render_template("tiezi_top.html", paginate=p, tiezis=tzs2)
 
 

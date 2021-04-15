@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container">
   <h1>Welcome {{ username }}</h1>
-  <h3>Tieba page.</h3>
+  <h3>Jobs page.</h3>
 
   <table class="table">
     <thead>
@@ -10,27 +10,18 @@
       <th>title        </th>
       <th>createTime</th>
       <th>content</th>
-      <th>author</th>
-      <th>pointNum</th>
-      <th>reply</th>
     </thead>
     <tbody>
-      <meta charset="UTF-8">
-      {% for tz in tiezis %}
+      {% for tz in jobs %}
       <tr>
         <td>{{ loop.index}}</td>
         <td> <a href="{{ tz.link}}">{{tz.title}}</a> </td>
         <td>{{ tz.createTime}}</td>
         <td>{{ tz.content}}</td>
-        <td>{{ tz.author2}}</td>
-        <td>{{ tz.pointNum}}</td>
-        <td>{{ tz.author4}}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% import 'utils/paging.html' as pg %}
-  {{ pg.page(paginate, "tiezi_top") }}
 
 </div>
 {% endblock %}

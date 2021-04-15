@@ -221,7 +221,7 @@ def parse_args(cmd=None):
     parserW.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
     parserW.add_argument('--url', default=start_url)
     parserW.set_defaults(handle=watchDb)
-    args  = parser.parse_args(cmd)
+    # args  = parser.parse_args(cmd)
 
     parserH = subparsers.add_parser('serve', help='fill data to database')
     parserH.add_argument('--port', default=5050)
