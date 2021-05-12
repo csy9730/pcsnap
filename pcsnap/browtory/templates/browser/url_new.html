@@ -1,0 +1,44 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}todoRestful{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>service list</h1>
+    <button type="button" class="btn btn-primary btn-sm" id="btnNew">创建</button>
+    {% include "browser/url.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // var gDat = "{{jstr}}";
+
+    $('#btnNew').click(function () {
+        var dt = newToJson();
+        if (dt.name == '') {
+            alert('input none');
+            return;
+        }
+        console.log('dt=', dt);
+        postData(dt);
+    })
+    // post请求
+    function postData(dt) {
+        $.ajax({
+            url: "/todos/api",
+            type: 'post',
+            dataType: 'json',
+            contentType: 'application/json;charset=utf-8',
+            data: JSON.stringify(dt),
+            success: function (data) {
+                console.log("post=", data);
+                window.location.href="/todos";
+            },
+            error: function () {
+                console.log("post error");
+            }
+        })
+    }
+</script>
+{% endblock %}

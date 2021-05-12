@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}todoRestful{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>service list</h1>
+
+    <!-- button type="button" class="btn btn-primary btn-sm" name="btnEdit">编辑</button -->
+    <button type="button" class="btn btn-primary btn-sm" id="btnPush">更新</button>
+    <button type="button" class="btn btn-primary btn-sm" id="btnDel">删除</button>
+    <div ><p style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"><a href="{{todo.url}}">{{todo.url}}</a></p></div>
+    {% include "browser/url.html" %}
+
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $('#btnPush').click(function () {
+        var dt = newToJson();
+        if (dt.name == '') {
+            alert('input none');
+            return;
+        }
+        console.log('dt=', dt);
+        putData(dt);
+    })
+    $('#btnDel').click(function () {
+        delData();
+    })
+
+    // put请求
+    function putData(dt) {
+        $.ajax({
+            url: "/todos/api/{{todo.id}}",
+            type: 'put',
+            dataType: 'json',
+            contentType: 'application/json;charset=utf-8',
+            data: JSON.stringify(dt),
+            success: function (data) {
+                console.log("put=", data);
+                window.location.reload();
+            },
+            error: function () {
+                console.log("put error");
+            }
+        })
+    }
+
+    function delData() {
+        $.ajax({
+            url: "/todos/api/{{todo.id}}",
+            type: 'delete',
+            success: function (data) {
+                console.log("delete=", data);
+                window.location.href = "/todos";
+            },
+            error: function () {
+                console.log("delete error");
+            }
+        })
+    }
+</script>
+{% endblock %}

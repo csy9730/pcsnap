@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}todoRestful{% endblock %}
+{% block content %}
+<!-- <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script> -->
+
+<div class="container">
+  <h1>todo list</h1>
+  <a href="/todosNew">
+    <button type="button" class="btn btn-primary" id="newTodo">
+      新建
+    </button>
+  </a>
+
+  <table style="table-layout:fixed" class="table table-condensed table-bordered table-hover table-striped" id="myTable">
+    <caption>代办事项列表</caption>
+    <thead>
+      <th  style='width:10%;'>index</th>
+      <th style='width:30%;'>name</th>
+      <th style='width:10%;'>点击</th>
+      <th style='width:30%;'>title</th>
+      <th style='width:20%;'>edit</th>
+    </thead>
+    <tbody>
+      <meta charset="UTF-8">
+      {% for v in todolist %}
+      <tr>
+        <td>{{ loop.index}}</td>
+        <td style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"><a href="/urls/{{v.id}}">{{v.url}}</a></td>
+        <td>{{v.visit_count}}</td>
+        <td>{{v.title}}</a> </td>
+        <td>{{v._last_visit_time}}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% import 'utils/paging.html' as pg %}
+  {{ pg.page(paginate, "urls_view") }}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script>
+  $('button[id=newTodo]').click(function () {
+    console.log('newTodo=');
+  })
+
+</script>
+{% endblock %}

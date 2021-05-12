@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Flanager{% endblock %}
+{% block content %}
+<!-- <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script> -->
+
+<div class="container">
+    <h1>accounts list</h1>
+    <ol>
+        <li><a href="/urls">
+                urls
+            </a></li>
+
+        <li><a href="/urls/top">
+            urls top
+            </a></li>
+        <li><a href="/urls/recent">
+                urls recent
+            </a></li>
+        <li><a href="/visits">
+                visits
+            </a></li>
+        <li><a href="/visits/recent">
+                visits recent
+            </a></li>
+    </ol>
+</div>
+<style>
+    body {
+        background: url({{ url_for('static', filename='images/amap.jpg')}}) no-repeat;
+    background-size: 100%;
+    }
+</style>
+{% endblock %}
