@@ -87,6 +87,59 @@ class Visits(db.Model):
         return {k: v for k, v in self.__dict__.items() if k in KEYS}
 
 
+class Downloads(db.Model):
+    __tablename__ = 'downloads'
+    id = Column(Integer, primary_key=True)
+    guid = Column(String(40))
+    current_path = Column(String(360))
+    target_path = Column(String(360))
+    referrer = Column(String(660))
+    site_url = Column(String(660))
+    tab_url = Column(String(660))
+    tab_referrer_url = Column(String(660))
+
+    last_modified = Column(String(60))
+    etag = Column(String(90))
+
+    mime_type = Column(String(50))
+    original_mime_type = Column(String(50))
+
+    start_time = db.Column(db.Integer, default=0)
+    received_bytes = db.Column(db.Integer, default=0)
+    total_bytes = db.Column(db.Integer, default=0)
+
+    state = db.Column(db.Integer, default=0)
+    danger_type = db.Column(db.Integer, default=0)
+
+    interrupt_reason = db.Column(db.Integer, default=0)
+    # hash = db.Column(db.Integer, default=0)
+    # http_method
+    # by_ext_name
+    # by_ext_id
+    end_time = db.Column(db.Integer, default=0)
+    opened = db.Column(db.Boolean, default=0)
+
+    last_access_time = db.Column(db.Integer, default=0)
+    transient = db.Column(db.Boolean, default=False)
+
+
+class Keyword_search_terms(db.Model):
+    __tablename__ = 'keyword_search_terms'
+
+    url_id = Column(Integer, primary_key=True)
+    keyword_id = Column(Integer)
+    term = Column(String(360))
+    normalized_term = Column(String(360))
+
+
+class Downloads_url_chains(db.Model):
+    __tablename__ = 'downloads_url_chains'
+
+    id = Column(Integer, primary_key=True)
+    chain_index = Column(Integer)
+    url = Column(String(360))
+
+
 @app.route('/')
 def index():
     return render_template("index.html")
@@ -151,7 +204,8 @@ def urls_recent_view():
 def url_view(todo_id):
     td = Urls.query.filter_by(id=todo_id).first()
     if td:
-        return render_template("browser/url_put.html", todo=td)
+        visit_list = Visits.query.filter_by(url=todo_id).all()
+        return render_template("browser/url_put.html", todo=td, visit_list=visit_list)
     else:
         abort(404, message="Todo {} doesn't exist".format(todo_id))
 
