@@ -20,8 +20,8 @@ def fetchChromeHistory(history_db):
 
 def getChromePath(input):
     """
-    C:\\Users\\gd_cs\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe
-    C:\\Users\\gd_cs\\AppData\\Local\\Google\\Chrome\\User Data\\Default
+    C:\\Users\\admin\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe
+    C:\\Users\\admin\\AppData\\Local\\Google\\Chrome\\User Data\\Default
 
     C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe
 
@@ -34,8 +34,8 @@ def getChromePath(input):
     C:\\ProgramData\\360\\360Chrome\\Chrome\\Application\\360chrome.exe
     C:\\ProgramData\\360\\360Chrome\\Chrome\\User Data\\Default
 
-    C:\\Users\\gd_cs\\AppData/Roaming/360se6/Application/360se.exe
-    C:\\Users\\gd_cs\\AppData/Roaming/360se6/UserData/Default
+    C:\\Users\\admin\\AppData/Roaming/360se6/Application/360se.exe
+    C:\\Users\\admin\\AppData/Roaming/360se6/UserData/Default
 
     """
     if input is None:
