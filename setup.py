@@ -6,7 +6,6 @@ from setuptools import setup, find_packages
 import pcsnap
 
 fpk=find_packages(where=".")
-print(fpk)
 
 setup(
     name='pcsnap',
