@@ -12,6 +12,7 @@ migrations/
 tmp/
 bak/
 temp/
+logs/
 
 data/
 chromeDefault/
