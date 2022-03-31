@@ -57,6 +57,10 @@ class Processlog(Base):
     use_cpu = Column(Integer, nullable=True)
     use_mem = Column(Integer, nullable=True)
     proc_id = Column(Integer, ForeignKey("process.id"))
+    num_threads = Column(Integer, nullable=True)
+    read_count = Column(Integer, nullable=True)
+    write_count = Column(Integer, nullable=True)
+    inet = Column(Integer, nullable=True)
 
     def __repr__(self):
         return '<Processlog %s %s>' % (self.proc.name, self.datetime)
@@ -86,8 +90,13 @@ def addProcessLog(DBSession, tasklist):
             if not fProc:    
                 fProc = Process(pid=s.pid, ppid=ppid, name=s.name(), cmdline=json.dumps(s.cmdline()), cwd=s.cwd(), is_live=True, create_time=ctm)
                 session.add(fProc)
+
+            io_cnt = s.io_counters()
+            read_count = io_cnt.read_count
+            write_count = io_cnt.write_count
             
-            pl = Processlog(update_time=dt)
+            pl = Processlog(update_time=dt, use_cpu=int(s.cpu_percent()*1000), use_mem=int(s.memory_percent()*1000),
+                 num_threads=s.num_threads(), read_count=read_count,write_count=write_count, inet=len(s.connections()))
             fProc.is_live = True
             fExe.procs.append(fProc)
             fProc.logs.append(pl)
@@ -114,7 +123,7 @@ def watchDb(args):
     DBSession = sessionmaker(bind=engine)
     if args.loop:
         while 1:
-            print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+            print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),end='\t')
             addProcessLog(DBSession, psutil.process_iter(['pid', 'ppid', 'cmdline', 'name', 'username']))
             time.sleep(args.interval)
     else:
@@ -125,18 +134,38 @@ def showDb(args):
     engine = create_engine(DB)
     DBSession = sessionmaker(bind=engine)
     session = DBSession()
-    if args.word == 'recent_proc':
+    if args.word == 'proc':
+        lst = session.query(Process).order_by(Process.create_time.desc()).limit(args.page_size)
+        for s in lst:
+            _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.create_time))
+            print(s.pid, s.exe.name, _dt)
+    elif args.word == 'live_proc':
         lst = session.query(Process).filter_by(is_live=True).order_by(Process.create_time.desc()).limit(args.page_size)
         for s in lst:
             _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.create_time))
             print(s.pid, s.exe.name, _dt)
-    elif args.word == 'recent_dead_proc':
+    elif args.word == 'dead_proc':
         lst = session.query(Process).filter_by(is_live=False).order_by(Process.create_time.desc()).limit(args.page_size)
         for s in lst:
             _dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
             print(s.pid, s.exe.name, _dt)
         # print(lst)
         # session.query(Exe).filter_by(exe=exe).first()
+    elif args.word == 'exe':
+        lst = session.query(Exe).order_by(Exe.id.desc()).limit(args.page_size)
+        for s in lst:
+            # _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.create_time))
+            print(s.id, s.name)
+    elif args.word == 'log':
+        lst = session.query(Processlog).order_by(Processlog.update_time.desc()).limit(args.page_size)
+        print('id,pid,name,cpu,mem,reads,writes,inet,datetime')
+        for s in lst:
+            _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.update_time))
+            print(s.id, s.proc.pid, s.proc.name, s.use_cpu, s.use_mem, s.read_count, s.write_count, s.inet, _dt)
+    elif args.word == 'summary':
+        print("summary")
+    else:
+        print("else")
     session.close()
     # procs
 
@@ -169,8 +198,9 @@ def parse_args(cmd=None):
     parserW.set_defaults(handle=watchDb)
 
     parserS = subparsers.add_parser('show', help='show database')
-    parserS.add_argument('word')
+    parserS.add_argument('--word', default='proc', choices=['proc', 'exe', 'log', 'summary'])
     parserS.add_argument('--page-size', '-ps', type=int, default=10)
+    parserS.add_argument('--offset', type=int, default=0)
     #  .offset((page_index-1)*page_size)
     parserS.set_defaults(handle=showDb)
 
@@ -182,73 +212,6 @@ def main(cmd=None):
     args = parse_args(cmd)
     if hasattr(args, 'handle'):
         args.handle(args) 
-
-
-def psutilDemo():
-    p = psutil.Process()
-    for proc in psutil.process_iter(['pid', 'ppid', 'cmdline', 'name', 'username']):
-        print(proc.pid)
-    # p.as_dict().keys()
-    # dict_keys(['nice', 'open_files', 'cpu_affinity', 'threads', 'environ', 'username', 'cmdline', 'memory_full_info', 'num_handles', 'ionice', 'num_ctx_switches', 'io_counters', 'cpu_times', 'num_threads', 'status', 'exe', 'memory_percent', 'pid', 'memory_maps', 'cwd', 'name', 'create_time', 'cpu_percent', 'connections', 'memory_info', 'ppid'])
-    """
-    with p.oneshot():
-        p.name()  # execute internal routine once collecting multiple info
-        p.cpu_times()  # return cached value
-        p.cpu_percent()  # return cached value
-        p.create_time()  # return cached value
-        p.ppid()  # return cached value
-        p.status()  # return cached value
-        p.cmdline()
-    """
-
-
-def sqlDemo():
-    def createDb():
-        engine = create_engine(DB)
-        # engine = create_engine('sqlite:///foo.db?check_same_thread=False', echo=True)
-        # if not os.path.exists('data.sqlite'):
-        #     db.create_all()
-        # # db.drop_all()
-        Base.metadata.create_all(engine, checkfirst=True)
-        return engine
-
-    def insertData(DBSession):
-        session = DBSession()
-        a_user = Process(name='Allice', pid=2)
-        session.add(a_user)
-        session.commit()
-        session.close()
-
-    def insertData2(DBSession):
-        session = DBSession()
-        a_user = Process(name='Caddy', pid=13)
-        a_log = Processlog(use_cpu=5)
-        a_user.logs.append(a_log)
-        session.add(a_log)
-        session.add(a_user)
-        session.commit()
-        session.close()
-
-    def queryData(DBSession):
-        # 字符串匹配方式筛选条件 并使用 order_by进行排序
-        session = DBSession()
-        r6 = session.query(Process).all()
-        print(r6)
-        session.close()
-
-    def queryData2(DBSession):
-        # 字符串匹配方式筛选条件 并使用 order_by进行排序
-        session = DBSession()
-        r = session.query(Process).all()
-        print(r)
-        r6 = session.query(Processlog).all()
-        print(r6)
-        session.close()
-
-    engine = createDb()
-    DBSession = sessionmaker(bind=engine)
-    insertData(DBSession)
-    queryData2(DBSession)
 
 
 """
