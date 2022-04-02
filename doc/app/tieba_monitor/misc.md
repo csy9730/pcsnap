@@ -1,4 +1,4 @@
-# msc
+# misc
 
 ## request 
 
@@ -8,7 +8,7 @@
 
 
 ## group_by + first/count
-```
+``` python
 session.query(func.count(User.id)).\
         group_by(User.name)
 
@@ -21,7 +21,7 @@ cnt = db.session.query(func.count(Tiezilog.id)).group_by(Tiezilog.tiezi_id).all(
 db.session.query(func.max(Tiezilog.pointNum), Tiezilog).group_by(Tiezilog.tiezi_id).all()
 ```
 
-```
+``` python
 sess = obtain_session()
 records = sess.query(Pageview.post_id,
                      func.count(Pageview.post_id).label('count')).

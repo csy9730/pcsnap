@@ -50,3 +50,28 @@ def sqlDemo():
     insertData(DBSession)
     queryData2(DBSession)
 ```
+
+
+
+"""
+外键/表关系都是虚的，不会实际反映到数据库表上。
+ForeignKey 描述列对应别的表的id列。
+relationship 可以描述两个表的关系，因为表关系对偶，只要可以准确描述对应的外键id，可以把关系语句放到表1或表2.
+注意： 1对多关系时，可以添加 lazy='dynamic'选项， 多对一关系，不能配置lazy='dynamic'选项。
+
+正向查询： 从多所在的表格查询 1所在的表格，
+反向查询： 从一所在的表格查询 多所在的表格（因为会返回列表，所以需要注意性能）
+"""
+
+
+## path
+``` python
+pth = os.path.expanduser('~/.pcsnap')
+os.makedirs(pth, exist_ok=True)
+DB = 'sqlite:///%s/tasklists.db' % pth
+DB = DB.replace('\\', '/')
+# DB = 'sqlite://C:/Users/foo/.pcsnap/tasklists.db' # error
+DB = 'sqlite:///C:/Users/foo/.pcsnap/tasklists.db'
+
+DB = "sqlite:///C:\\Users\\Username\\AppData\\Roaming\\Appname\\mydatabase.db"
+```

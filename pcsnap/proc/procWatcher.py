@@ -1,25 +1,44 @@
+import time
+import psutil
+import json
+import logging
+import sys
+import os
+
 from sqlalchemy import Column, String, Integer, create_engine, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
-import time
-import psutil
-import json
+
 
 Base = declarative_base()
-DB = 'sqlite:///tasklists.db'
+pth = os.path.expanduser('~/.pcsnap')
+os.makedirs(pth, exist_ok=True)
+DB = 'sqlite:///%s/tasklists.db' % pth
+DB = DB.replace('\\', '/')
+# DB = 'sqlite://C:/Users/foo/.pcsnap/tasklists.db' error
+# DB = 'sqlite:///C:/Users/foo/.pcsnap/tasklists.db'
+# print(DB)
+# exit(0)
 
-"""
-外键/表关系都是虚的，不会实际反映到数据库表上。
-ForeignKey 描述列对应别的表的id列。
-relationship 可以描述两个表的关系，因为表关系对偶，只要可以准确描述对应的外键id，可以把关系语句放到表1或表2.
-注意： 1对多关系时，可以添加 lazy='dynamic'选项， 多对一关系，不能配置lazy='dynamic'选项。
+def getLogger(name, level="INFO", disable=False, log_file="tmp.log"):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.disabled = disable
+    if not logger.handlers:
+        handler = logging.FileHandler(log_file)
+        handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
+        logger.addHandler(handler)  # add the handlers to the logger
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
+        logger.addHandler(console)
+    return logger
 
-正向查询： 从多所在的表格查询 1所在的表格，
-反向查询： 从一所在的表格查询 多所在的表格（因为会返回列表，所以需要注意性能）
-"""
-
+logger = getLogger(__name__)
 
 class Exe(Base):
     __tablename__ = 'exes'
@@ -72,7 +91,7 @@ def addProcessLog(DBSession, tasklist):
     alvs = qAlv.all()
     for s in alvs:
         s.is_live = False
-    print(len(alvs))
+    logger.info(len(alvs))
     # print(len(qAlv.all()))
 
     dt = int(time.time())
@@ -103,7 +122,7 @@ def addProcessLog(DBSession, tasklist):
             session.add(fProc)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
-            # print(s)
+            # logger.error(s)
 
     session.commit()
 
@@ -114,6 +133,7 @@ def initDb(args):
     # if not os.path.exists('data.sqlite'):
     #     db.create_all()
     # # db.drop_all()
+    logger.info(DB)
     Base.metadata.create_all(engine, checkfirst=True)
     return engine
 
@@ -205,6 +225,9 @@ def parse_args(cmd=None):
     parserS.set_defaults(handle=showDb)
 
     args = parser.parse_args(cmd)
+    if not hasattr(args, 'handle'):
+        parser.print_help()
+
     return args
 
 
@@ -214,12 +237,6 @@ def main(cmd=None):
         args.handle(args) 
 
 
-"""
-49
-157
-157
-74kb => 80kb
-"""
 if __name__ == "__main__":
     # sqlDemo()
     main()
