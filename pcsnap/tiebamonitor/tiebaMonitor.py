@@ -100,6 +100,8 @@ def watchDb(args):
             break
         time.sleep(args.interval)
 
+def showDb(**kwargs):
+    pass
 
 def getFirst(x):
     if isinstance(x, list):
@@ -221,13 +223,17 @@ def parse_args(cmd=None):
     parserW.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
     parserW.add_argument('--url', default=start_url)
     parserW.set_defaults(handle=watchDb)
-    # args  = parser.parse_args(cmd)
 
-    parserH = subparsers.add_parser('serve', help='fill data to database')
+    parserS = subparsers.add_parser('show', help='show data to database')
+    parserS.set_defaults(handle=showDb)
+
+    parserH = subparsers.add_parser('serve', help='start server that can watch or show')
     parserH.add_argument('--port', default=5050)
     parserH.add_argument('--bind', default='0.0.0.0')
     parserH.set_defaults(handle=watchDb)
     args  = parser.parse_args(cmd)
+    if not hasattr(args, 'handle'):
+        parser.print_help()
     return args
 
 

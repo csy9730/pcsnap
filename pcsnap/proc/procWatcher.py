@@ -22,7 +22,7 @@ DB = DB.replace('\\', '/')
 # print(DB)
 # exit(0)
 
-def getLogger(name, level="INFO", disable=False, log_file="tmp.log"):
+def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.disabled = disable
@@ -38,7 +38,7 @@ def getLogger(name, level="INFO", disable=False, log_file="tmp.log"):
         logger.addHandler(console)
     return logger
 
-logger = getLogger(__name__)
+logger = getLogger(__name__, log_file=os.path.expanduser('~/.pcsnap/pcsnap.log'))
 
 class Exe(Base):
     __tablename__ = 'exes'
@@ -189,6 +189,9 @@ def showDb(args):
     session.close()
     # procs
 
+def serveDb(**kwargs):
+    pass
+
 """
     最高访问次数的exe， 全部/当天/当月
     最高存活时间的exe， 全部/当天/当月
@@ -223,6 +226,9 @@ def parse_args(cmd=None):
     parserS.add_argument('--offset', type=int, default=0)
     #  .offset((page_index-1)*page_size)
     parserS.set_defaults(handle=showDb)
+
+    parserH = subparsers.add_parser('serve', help='serve that can watch or show')
+    parserH.set_defaults(handle=serveDb)
 
     args = parser.parse_args(cmd)
     if not hasattr(args, 'handle'):

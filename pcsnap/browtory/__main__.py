@@ -5,6 +5,7 @@ import time
 from urllib.parse import quote
 import operator
 from collections import OrderedDict
+import logging
 
 DEFAULT_PATH = r"User Data\Default"
 
@@ -13,6 +14,24 @@ DEFAULT_PATH = r"User Data\Default"
 # - [ ] add: pull by sftp
 # - [ ] add: select viewer
 
+
+def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.disabled = disable
+    if not logger.handlers:
+        handler = logging.FileHandler(log_file)
+        handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
+        logger.addHandler(handler)  # add the handlers to the logger
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
+        logger.addHandler(console)
+    return logger
+
+logger = getLogger(__name__, log_file=os.path.expanduser('~/.pcsnap/browtory.log'))
 
 def getChromePath(input):
     """
@@ -33,7 +52,7 @@ def getChromePath(input):
     input = os.path.normcase(input)   
 
     if not os.path.exists(input):
-        print(input, "not found")
+        logger.error("%s not found", input)
         raise NotADirectoryError
 
     f, f2 = os.path.split(input)
@@ -43,10 +62,10 @@ def getChromePath(input):
     elif f.endswith("application") and f2 in ['chrome.exe', '360chrome.exe', '360se.exe']:
         input = input[:-11] + DEFAULT_PATH
     else:
-        print(input, "not recognition")
+        logger.error("%s not recognition" % input)
         raise FileNotFoundError
     if not os.path.exists(input):
-        print(input, "not found")
+        logger.error("not found" % input)
         raise FileNotFoundError
     return input
 
@@ -54,7 +73,7 @@ def chromeOper(input=None, output=None, dry_run=None, **kwargs):
     try:
         input = getChromePath(input)
     except (FileNotFoundError, NotADirectoryError) as e:
-        print(e)
+        logger.error(e)
         exit(-1)
 
     input2 = quote(input, safe='')
@@ -64,17 +83,21 @@ def chromeOper(input=None, output=None, dry_run=None, **kwargs):
         output_dir = os.path.dirname(output)
 
     if not os.path.exists(output_dir):
+        logger.info("mkdir %s", output_dir)
         os.makedirs(output_dir)
 
     files = ['history', 'Bookmarks', 'Cookies', 'Preferences', 'Login Data']
     for f in files:
         history_db = os.path.join(input, f)
         output = os.path.join(output_dir, f)
+        if not os.path.exists(history_db):
+            logger.warning("%s not found" % history_db)
+            continue
         if not dry_run:
-            print('mv %s %s' %(history_db, output))
+            logger.info('mv %s %s' %(history_db, output))
             shutil.copy(history_db, output)
         else:
-            print('mv %s %s' %(history_db, output))
+            logger.info('mv %s %s' %(history_db, output))
 
 def fetchChromeHistory(history_db):
     # querying the db
@@ -87,7 +110,7 @@ def fetchChromeHistory(history_db):
 
     return results
 
-def parse(url):
+def url_parse(url):
     try:
         parsed_url_components = url.split('//')
         sublevel_split = parsed_url_components[1].split('/', 1)
@@ -115,7 +138,7 @@ def analyze(results):
 
 def chromeShow(input=None, output=None, **kwargs):
     results = fetchChromeHistory(input)
-    print(len(results))
+    logger.info(len(results))
     if output:
         import pandas as pd
         df = pd.DataFrame(results)
@@ -124,7 +147,7 @@ def chromeShow(input=None, output=None, **kwargs):
         sites_count = {}  # dict makes iterations easier :D
 
         for url, count in results:
-            url = parse(url)
+            url = url_parse(url)
             if url in sites_count:
                 sites_count[url] += 1
             else:
@@ -136,7 +159,7 @@ def chromeShow(input=None, output=None, **kwargs):
         analyze (sites_count_sorted)
 
 def chromeserve(**kwargs):
-    pass
+    logger.info("todo")
 
 def parse_args(cmds=None):
     import argparse
