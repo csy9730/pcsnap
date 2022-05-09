@@ -11,17 +11,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
 
-
-Base = declarative_base()
-pth = os.path.expanduser('~/.pcsnap')
-os.makedirs(pth, exist_ok=True)
-DB = 'sqlite:///%s/tasklists.db' % pth
-DB = DB.replace('\\', '/')
-# DB = 'sqlite://C:/Users/foo/.pcsnap/tasklists.db' error
-# DB = 'sqlite:///C:/Users/foo/.pcsnap/tasklists.db'
-# print(DB)
-# exit(0)
-
 def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -38,7 +27,51 @@ def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
         logger.addHandler(console)
     return logger
 
-logger = getLogger(__name__, log_file=os.path.expanduser('~/.pcsnap/pcsnap.log'))
+
+def gen_db_path(pth):
+    DB = 'sqlite:///%s/tasklists.db' % pth
+    DB = DB.replace('\\', '/')
+    return DB
+
+
+def get_all_config_path():
+    return [os.path.join(os.getcwd(), '.pcsnap'), os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pcsnap'), os.path.expanduser('~/.pcsnap'), '/etc/.pcsnap']
+
+
+def find_config_path():
+    ff = get_all_config_path()
+    for f in ff:
+        if os.path.isdir(f):
+            return f
+    return ff[-2]
+
+def new_get_conffile(pfn):
+    import configparser
+    _conf = configparser.ConfigParser()
+    _conf.read(pfn)
+    # print(_conf.sections())
+    if not _conf.sections():
+        DB = gen_db_path(os.path.expanduser('~/.pcsnap'))
+        LOG_FILE = os.path.expanduser('~/.pcsnap/pcsnap.log')
+        dct = {"default": {"created_at": time.strftime('%Y-%m-%d %H:%M:%S'), "author": "foo", "agent": "pcsnap.proc", "log_file": LOG_FILE, "database": DB}}
+        _conf.read_dict(dct)   
+        _conf.write(open(pfn, 'w'))
+    else:
+        dct = {"default": {"visited_at": time.strftime('%Y-%m-%d %H:%M:%S')}}
+        _conf.read_dict(dct)   
+        _conf.write(open(pfn, 'w'))
+    return _conf
+
+Base = declarative_base()
+
+pth = os.path.expanduser('~/.pcsnap')
+os.makedirs(pth, exist_ok=True)
+pfn = os.path.join(find_config_path(), "procWatcher.ini")
+conf = new_get_conffile(pfn)
+DB = conf.get('default', 'database')
+LOG_FILE = conf.get('default','log_file')
+logger = getLogger(__name__, log_file=LOG_FILE)
+
 
 class Exe(Base):
     __tablename__ = 'exes'
