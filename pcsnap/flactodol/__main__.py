@@ -14,6 +14,13 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
 
 
+import socket
+
+def printUserMac():
+    import getpass
+    print(getpass.getuser(), getpass.getpass,os.getlogin(), socket.gethostname())
+
+
 def getLogger(name, level="INFO", disable=False, log_file="flactodol.log"):
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -56,7 +63,8 @@ def new_get_conffile(pfn):
     if not _conf.sections():
         DB = gen_db_path(os.path.expanduser('~/.pcsnap'))
         LOG_FILE = os.path.expanduser('~/.pcsnap/flactodol.log')
-        dct = {"default": {"created_at": time.strftime('%Y-%m-%d %H:%M:%S'), "author": "foo", "agent": "pcsnap.proc", "log_file": LOG_FILE, "database": DB}}
+        dct = {"default": {"created_at": time.strftime('%Y-%m-%d %H:%M:%S'), "author": os.getlogin(), "agent": "pcsnap.proc", "log_file": LOG_FILE, "database": DB,
+            "hostname": socket.gethostname()}}
         _conf.read_dict(dct)   
         _conf.write(open(pfn, 'w'))
     else:
@@ -89,30 +97,34 @@ class User(Base):
 class Todos(Base):
     __tablename__ = 'todos'
     id = Column(Integer, primary_key=True)
-    name = Column(String(60))
 
-    status = Column(Boolean, default=False)
+    name = Column(String(60))
+    about = Column(String(660), nullable=True)
+
+    is_close = Column(Boolean, default=False)
     is_success = Column(Boolean, default=False)
-    progress = Column(Integer, default=0)
+    is_active = Column(Boolean(), default=True)
+
+    # progress = Column(Integer, default=0)
     tag = Column(Enum('weekly', 'work', 'study', 'relax', 'self', 'event'),
                     server_default='weekly',
                     nullable=False)
-    about = Column(String(660), nullable=True)
+
     created_at = Column(DateTime,
                            nullable=False,
                            default=dt.datetime.now)
     updated_at = Column(DateTime,
                            nullable=False,
                            default=dt.datetime.now)
+
     verb_tag = Column(Enum('code', 'tool', 'solve', 'apply', 'weekly', 'misc', 'doc', 'read', 'relax'),
                     server_default='misc',
                     nullable=False)
+
     user_id = Column(Integer, ForeignKey('users.id'))
 
     is_project = Column(Boolean(), default=False)
     par_id = Column(Integer, ForeignKey('todos.id'), nullable=True)
-
-    is_active = Column(Boolean(), default=True)
     depend_id = Column(Integer, ForeignKey('todos.id'), nullable=True)
     plan_at = Column(DateTime, nullable=True)
 
