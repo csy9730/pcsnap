@@ -7,7 +7,7 @@ import sys
 import os
 import datetime as dt
 
-from sqlalchemy import Column, String, Integer, create_engine, Boolean, Float, DateTime, Enum
+from sqlalchemy import Column, String, Integer, create_engine, Boolean, Float, DateTime, Enum, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
@@ -87,11 +87,19 @@ logger = getLogger(__name__, log_file=LOG_FILE)
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
-    name = Column(String(60))
-    # procs = relationship("Process", backref='exe', lazy='dynamic')
+    username = Column(String(80), unique=True, nullable=False)
+    email = Column(String(80), unique=True, nullable=False)
+    password = Column(LargeBinary(128), nullable=True)
+    created_at = Column(DateTime,
+                           nullable=False,
+                           default=dt.datetime.now)
+    is_active = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
+    first_name = Column(String(30), nullable=True)
+    last_name = Column(String(30), nullable=True)
 
     def __repr__(self):
-        return '<Exe %s %s>' % (self.id, self.name)
+        return '<User %s %s>' % (self.id, self.username)
 
 
 class Todos(Base):
@@ -100,8 +108,9 @@ class Todos(Base):
 
     name = Column(String(60))
     about = Column(String(660), nullable=True)
+    useragent = Column(String(60))
 
-    is_close = Column(Boolean, default=False)
+    status = Column(Boolean, default=False) # is_close
     is_success = Column(Boolean, default=False)
     is_active = Column(Boolean(), default=True)
 
@@ -117,7 +126,7 @@ class Todos(Base):
                            nullable=False,
                            default=dt.datetime.now)
 
-    verb_tag = Column(Enum('code', 'tool', 'solve', 'apply', 'weekly', 'misc', 'doc', 'read', 'relax'),
+    verb_tag = Column(Enum('code', 'tool', 'solve', 'apply', 'weekly', 'misc', 'doc', 'read', 'relax', 'law', 'log'),
                     server_default='misc',
                     nullable=False)
 
@@ -126,8 +135,18 @@ class Todos(Base):
     is_project = Column(Boolean(), default=False)
     par_id = Column(Integer, ForeignKey('todos.id'), nullable=True)
     depend_id = Column(Integer, ForeignKey('todos.id'), nullable=True)
+    
     plan_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
 
+    stage = Column(Enum('new', 'ss', 'design', 'do', 'log'),
+                server_default='new',
+                nullable=False)
+    progress = Column(Integer, default=0)
+
+    plan_hour = Column(Integer, nullable=True)
+    used_hour = Column(Integer, nullable=True)
+    
     def __init__(self, **kwargs):
         if "updated_at" in kwargs:
             updated_at = kwargs.pop("updated_at")
@@ -189,7 +208,19 @@ def addDb(args):
     pass
 
 def showDb(args):
-    pass
+    engine = create_engine(DB)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    if args.word == 'user':
+        lst = session.query(User).order_by(User.created_at.desc()).limit(args.page_size)
+        for s in lst:
+            # _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.created_at))
+            print(s.id, s.username, s.created_at)
+    elif args.word == 'todo':
+        lst = session.query(Todos).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            # _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.created_at))
+            print(s.id, s.name, s.tag, s.created_at)
 
 def finishDb(args):
     pass
@@ -214,7 +245,7 @@ def parse_args(cmd=None):
     parserA.set_defaults(handle=addDb)
 
     parserS = subparsers.add_parser('show', help='show database')
-    parserS.add_argument('--word', default='proc', choices=['proc', 'exe', 'log', 'summary'])
+    parserS.add_argument('--word', default='todo', choices=['user', 'todo', 'log', 'summary'])
     parserS.add_argument('--page-size', '-ps', type=int, default=10)
     parserS.add_argument('--offset', type=int, default=0)
     #  .offset((page_index-1)*page_size)
