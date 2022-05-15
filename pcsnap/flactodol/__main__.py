@@ -63,8 +63,16 @@ def new_get_conffile(pfn):
     if not _conf.sections():
         DB = gen_db_path(os.path.expanduser('~/.pcsnap'))
         LOG_FILE = os.path.expanduser('~/.pcsnap/flactodol.log')
-        dct = {"default": {"created_at": time.strftime('%Y-%m-%d %H:%M:%S'), "author": os.getlogin(), "agent": "pcsnap.proc", "log_file": LOG_FILE, "database": DB,
-            "hostname": socket.gethostname()}}
+        dct = {
+            "default": {
+                "created_at": time.strftime('%Y-%m-%d %H:%M:%S'), 
+                "author": os.getlogin(), 
+                "agent": ' '.join(['pcsnap', 'flactodol', pcsnap.__version__, 'python', platform.python_version(), platform.system(), platform.version(), platform.machine()]), 
+                "log_file": LOG_FILE, 
+                "database": DB,
+                "hostname": socket.gethostname()
+            }
+        }
         _conf.read_dict(dct)   
         _conf.write(open(pfn, 'w'))
     else:
@@ -157,7 +165,7 @@ class Todos(Base):
         super(Todos, self).__init__(**kwargs)
 
     def __repr__(self):
-        return '<Todos %s %s>' % (self.id, self.name)
+        return '<Todos %s %s>' % (self.id, self.name, self.is_close)
 
     def to_dict(self):
         KEYS = ('id', "name", "status", "progress", "tag", "about", "is_success", \
@@ -204,29 +212,111 @@ def initDb(args):
     Base.metadata.create_all(engine, checkfirst=True)
     return engine
 
-def addDb(args):
-    pass
-
-def showDb(args):
+def get_session():
     engine = create_engine(DB)
     DBSession = sessionmaker(bind=engine)
     session = DBSession()
+    return session
+
+
+def showDb(args):
+    session = get_session()
     if args.word == 'user':
         lst = session.query(User).order_by(User.created_at.desc()).limit(args.page_size)
         for s in lst:
-            # _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.created_at))
             print(s.id, s.username, s.created_at)
-    elif args.word == 'todo':
+
+    elif args.word == 'all':
         lst = session.query(Todos).order_by(Todos.updated_at.desc()).limit(args.page_size)
         for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)
+
+    elif args.word == 'task':
+        lst = session.query(Todos).filter_by(status=False).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)
+
+    elif args.word == 'todo':
+        lst = session.query(Todos).filter_by(status=False, is_active=True).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)
+
+    elif args.word == 'plan':
+        lst = session.query(Todos).filter_by(status=False, is_active=False).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)
+
+    elif args.word == 'project':
+        lst = session.query(Todos).filter_by(status=False, is_project=True).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)
+
+    elif args.word == 'done':
+        lst = session.query(Todos).filter_by(status=True).filter_by(is_success=True).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
             # _dt = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(s.created_at))
-            print(s.id, s.name, s.tag, s.created_at)
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)    
+    
+    elif args.word == 'log':
+        lst = session.query(Todos).filter_by(status=True).order_by(Todos.updated_at.desc()).limit(args.page_size)
+        for s in lst:
+            print(s.id, s.name, s.tag, s.verb_tag, s.is_success, s.created_at)  
+
+"""
+-all
+    - task
+        - todos
+        - plan
+        - project
+    - log
+        - done 
+        - failed
+"""
+
+def addDb(args):
+    # foo add -m "ladder plan" -t "work"
+    session = get_session()
+
+    # cnt = content.split(',')
+    td = Todos(name=args.content, tag=args.tag, verb_tag=args.verb_tag, 
+        useragent = conf.get('default', 'agent', fallback='flactodol'), 
+        user_id = conf.getint('default','user_id')
+    )
+    session.add(td)
+    session.commit()
+    logger.info(td)
 
 def finishDb(args):
-    pass
+    session = get_session()
+    td = session.query(Todos).filter_by(id=args.id).first()
+    if not td:
+        logger.waning("Todo {} doesn't exist".format(todo_id))
+    td.status = True
+    td.is_success = True
+    td.is_active = True
+    session.add(td)
+    logger.info(td)
+    tds = session.query(Todos).filter_by(depend_id=args.id, is_active=False).all()
+    logger.debug(tds)
+    for t in tds:  
+        t.is_active = True
+        session.add(t)
+    session.commit()
 
 def unfinishDb(args):
-    pass
+    engine = create_engine(DB)
+    DBSession = sessionmaker(bind=engine)
+    session = DBSession()
+    td = session.query(Todos).filter_by(id=args.id).first()
+
+    if not td:
+        logger.waning("Todo {} doesn't exist".format(args.id))
+    td.status = True
+    td.is_success = False
+    logger.info(td)
+    session.add(td)
+    session.commit()
+
 
 def serveDb(args):
     pass
@@ -239,26 +329,27 @@ def parse_args(cmd=None):
     parserT = subparsers.add_parser('init', help='init database')
     parserT.set_defaults(handle=initDb)
 
-    parserA = subparsers.add_parser('addDb', help='fill data to database')
-    parserA.add_argument('--loop', '-l', action='store_true')
-    parserA.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
+    parserA = subparsers.add_parser('add', help='fill data to database')
+    parserA.add_argument('content')
+    parserA.add_argument('--tag', '-t', default='weekly', choices=['weekly', 'work', 'study', 'relax', 'self', 'event'])
+    parserA.add_argument('--verb-tag', '-vb', default='weekly', choices=['code', 'tool', 'solve', 'apply', 'weekly', 'misc', 'doc', 'read', 'relax', 'law', 'log'])
+    parserA.add_argument('--about')
+    
     parserA.set_defaults(handle=addDb)
 
     parserS = subparsers.add_parser('show', help='show database')
-    parserS.add_argument('--word', default='todo', choices=['user', 'todo', 'log', 'summary'])
+    parserS.add_argument('--word', '-w', default='todo', choices=['user', 'all', 'task', 'todo', 'done', 'fail', 'plan', 'log', 'project'])
     parserS.add_argument('--page-size', '-ps', type=int, default=10)
     parserS.add_argument('--offset', type=int, default=0)
     #  .offset((page_index-1)*page_size)
     parserS.set_defaults(handle=showDb)
 
-    parserF = subparsers.add_parser('finishDb', help='fill data to database')
-    parserF.add_argument('--loop', '-l', action='store_true')
-    parserF.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
+    parserF = subparsers.add_parser('finish', help='finished to to database')
+    parserF.add_argument('id', type=int)
     parserF.set_defaults(handle=finishDb)
 
-    parserU = subparsers.add_parser('unfinishDb', help='fill data to database')
-    parserU.add_argument('--loop', '-l', action='store_true')
-    parserU.add_argument('--interval', '-itv', type=int, default=600, help='loop interval default(300) second')
+    parserU = subparsers.add_parser('unfinish', help='unfinished data to database')
+    parserU.add_argument('id', type=int)
     parserU.set_defaults(handle=unfinishDb)
 
     parserH = subparsers.add_parser('serve', help='serve that can watch or show')
