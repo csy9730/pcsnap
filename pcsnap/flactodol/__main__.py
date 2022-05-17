@@ -165,7 +165,7 @@ class Todos(Base):
         super(Todos, self).__init__(**kwargs)
 
     def __repr__(self):
-        return '<Todos %s %s>' % (self.id, self.name, self.is_close)
+        return '<Todos %s %s %s>' % (self.id, self.name, self.status)
 
     def to_dict(self):
         KEYS = ('id', "name", "status", "progress", "tag", "about", "is_success", \

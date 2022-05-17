@@ -27,7 +27,9 @@ foo drop index
   - work
   - study
   - self
-  - weekly misc defalt relax
+  - weekly 日常事务 monthly diary
+  - misc 杂类 defalt 缺省
+  - relax
 
 
 - verb tag
@@ -41,16 +43,25 @@ foo drop index
       - design
       - log/summary/diary
       - law 
+      - install 安装软件，
   - non-creative activity
-      - run/sport
-      - dinner
-      - clean
-      - shop
-      - move
-      - apply
-      - party
-      - games
-
+      - self
+          - body
+      - weekly
+          - dinner 吃饭，大餐，聚餐
+          - clean/wash 清洁 洗澡
+          - fetch 获取快递
+          - shop 网上购物
+          - mall 商场购物
+          - apply 网上申请，注册
+          - office 办事处
+          - hitchhikers 顺风车
+          - party 开会
+          - homing/ move 回家
+          - sport
+              - run 跑步
+      - relax 
+          - games
 
 #### 标题和描述
 - about
@@ -154,3 +165,66 @@ UA 应该和user绑定么？
 
 taskGenerater: 
 - period 周期
+
+
+## 3
+
+
+- 车辆保养
+- 代码同步
+- 疫情 接口
+- 提前还款 计划
+
+
+#### 场景
+如何描述当前性，场景匹配性
+
+- pc
+- pad
+- mobile
+- wifi
+- car
+- bike
+- walk
+
+- location
+  - work
+      - zlg work +mobile +pc
+  - home 
+      - z203 +mobile +pad +pc +wifi +bed
+      - xcxnth +mobile +pad +pc +wifi +bed
+  - family
+      - whxnlb +mobile +pad +pc +wifi +bed
+      - vukgcp +mobile +pad +pc +wifi +bed
+  - traffic 
+      - car  +mobile
+      - subway +mobile
+      - walk +mobile
+      - bike 
+      - train +mobile
+  - guest
+      - +mobile
+- datetime
+    - workday
+      - working time
+      - life time
+          - dinner time
+          - washing time
+      - study time
+      - relax time
+      - sleep time
+    - weekend
+      - 
+
+代办事项，默认屏蔽项目，只显示合适项目
+
+
+##### demnd
+排列，安排，放置，归位，丢弃，政务厅，办事处，市场，顺风车，搭便车，
+办事大厅，
+市场，商场，逛街 ，翻译，购买，网购，电子商城
+整理，整洁，整理衣服，清理，处置
+
+Arrange, sort,put,place, place, homing, discard, council, office, market, hitchhiking, hitchhiking,
+Business lobby,
+Market, shopping mall, shopping, translation, purchase, online shopping, electronic mall
