@@ -1,5 +1,9 @@
 # todos
 
+
+记录和管理待办事项，计划，项目。
+
+## usage
 ### commands
 ``` bash
 foo add "+work+code ladder plan"
@@ -10,40 +14,42 @@ foo finish index
 foo drop index
 ```
 
-## record
-
 ### simbol
-- %tag
+- %tag 描述tag
 - @car @home @
 - \# sss
-- +foo
-- $
+- +foo 描述tag
+- $ 
 - 
 
 
 ### demos
 
 - main tag
-  - work
-  - study
-  - self
+  - work 工作事务 
+  - study 学习相关
+  - self 个人相关
   - weekly 日常事务 monthly diary
   - misc 杂类 defalt 缺省
-  - relax
+  - relax 休闲事务
 
 
 - verb tag
   - creative
-      - new
-      - ss
-      - debug
-      - solve
-      - code
-      - doc
-      - design
-      - log/summary/diary
-      - law 
-      - install 安装软件，
+      - new 提出需求
+      - ss 搜索
+      - solve/debug 解决问题
+      - test/benchmark 单元测试，跑分
+      - code 代码编程
+      - doc 文档
+      - pdf/read 阅读
+      - design 设计
+      - log/diary 记录，日记
+      - abs/summary 总结
+      - law 规定，约定
+      - install 安装软件，安装硬件（电脑，桌子）
+      - tool 工具
+      - discussion 讨论
   - non-creative activity
       - self
           - body
@@ -55,13 +61,17 @@ foo drop index
           - mall 商场购物
           - apply 网上申请，注册
           - office 办事处
-          - hitchhikers 顺风车
-          - party 开会
+          - driving/hitchhikers 顺风车
+          - traffic/move 交通
+          - party/meeting/greet 开会，聚会
           - homing/ move 回家
           - sport
               - run 跑步
+          - call/summon 召唤
+          - fix 修理
       - relax 
-          - games
+          - games 游戏
+              - wzry 王者荣耀
 
 #### 标题和描述
 - about
@@ -220,11 +230,25 @@ taskGenerater:
 
 
 ##### demnd
-排列，安排，放置，归位，丢弃，政务厅，办事处，市场，顺风车，搭便车，
-办事大厅，
-市场，商场，逛街 ，翻译，购买，网购，电子商城
-整理，整洁，整理衣服，清理，处置
 
-Arrange, sort,put,place, place, homing, discard, council, office, market, hitchhiking, hitchhiking,
-Business lobby,
-Market, shopping mall, shopping, translation, purchase, online shopping, electronic mall
+- 排列，sort
+- 安排，Arrange
+- put
+- 放置 place
+- 归类 categorize classify
+- 归位，homing
+- 处置 dispose
+- 丢弃，discard
+- 整理，整洁，整理衣服，清理，tidy
+
+- 办事大厅，council
+- 政务厅， Business lobby
+- 办事处，office
+- 顺风车，搭便车，hitchhiking
+
+- 市场，Market
+- 商场，shopping mall
+- 逛街 ，shopping
+- purchase, 
+- 网购，online shopping,
+- 电子商城 electronic mall

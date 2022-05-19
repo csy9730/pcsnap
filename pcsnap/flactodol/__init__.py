@@ -1,4 +1,5 @@
 
+from calendar import month
 import datetime
 import time
 
@@ -75,9 +76,68 @@ def test_is_chinese_weekday():
     assert not is_chinese_weekday(datetime.date(2022,5,15))
     assert is_chinese_weekday(datetime.date(2022,5,17))
 
-test_is_chinese_weekday()
+def get_deltatime(dt):
+    # a='3d12m56c'
+    import re
+    ss = re.split('([Mwdhm])', dt) # ['3', 'd', '12', 'm', '56c']
+    tt = [0, 0, 0, 0, 0] # M,w,d,h,m
+    for s in ss:
+        if s.isdigit():
+            d = int(s)
+        else:
+            if s == 'M':
+                tt[0] = d
+            elif s == 'w':
+                tt[1] = d
+            elif s == 'd':
+                tt[2] = d
+            elif s == 'h':
+                tt[3] = d
+            elif s == 'm':
+                tt[4] = d
+            # else:
+            #     print(s, d)
+    return datetime.timedelta(days=tt[0]*30+tt[1]*7+tt[2],hours=tt[3],minutes=tt[4])
+
+def test_deltatime():
+    print(get_deltatime('1d2h30m'))
+
+def datetimestr_2_dt(s=None):
+    if s is None:
+        return datetime.datetime.now()
+
+    if "-" in s or "_" in s:
+        dt = datetime.datetime.now() - get_deltatime(s[1:])
+        return dt
+    elif "+" in s:
+        return datetime.datetime.now() + get_deltatime(s[1:])
+        
+    if len(s) == 4 and s.isdigit():
+        return datetime.datetime(year=datetime.date.today().year, month=int(s[:2]), day=int(s[2:]), hour=12)
+    elif len(s) == 8 and s.isdigit():
+        return datetime.datetime(year=int(s[:4]), month=int(s[4:6]), day=int(s[6:]), hour=12)
+    elif len(s) == 6 and s.isdigit():
+        return datetime.datetime.combine(datetime.date.today(), datetime.time(hour=int(s[:2]), minute=int(s[2:4]), second=int(s[4:])))
+
+def test_datetimestr_2_dt():
+    print(datetimestr_2_dt())
+    dt = datetimestr_2_dt("1101")
+    print(dt)
+    dt = datetimestr_2_dt("20221101")
+    print(dt)
+    dt = datetimestr_2_dt("123456")
+    print(dt)
+
+    dt = datetimestr_2_dt("-1d6h")
+    print(dt)
+    dt = datetimestr_2_dt("+1d1h10m")
+    print(dt)
+
 def main():
-    guess_occasions()
+    # guess_occasions()
+    # test_is_chinese_weekday()
+    test_datetimestr_2_dt()
+    test_deltatime()
 
 if __name__ == "__main__":
     main()
