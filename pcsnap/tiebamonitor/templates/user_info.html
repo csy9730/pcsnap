@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h1>{{ user.name }}的主页</h1>
+  <h6><a href="{{ user.link}}">{{user.link}}</a></h6> 
+  <h6>发帖记录</h6><br>
+  <table class="table">
+    <thead>
+      <th>index</th>
+      <th>title</th>
+      <th>content</th>
+      <th>createTime</th>
+    </thead>
+    <tbody>
+      <meta charset="UTF-8">
+      {% for tie in user.tiezis %}
+      <tr>
+        <td>{{ loop.index}}</td>
+        <td><a href="/tiezi/{{ tie.id}}">{{tie.title}}</a></td>
+        <td><a href="{{ tie.link}}"> {{tie.content}}</a> </td>
+        <td>{{tie.createTime}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <br>
+  <h6>回帖记录</h6><br>
+  <table class="table">
+    <thead>
+      <th>index</th>
+      <th>title</th>
+      <th>content</th>
+      <th>createTime</th>
+    </thead>
+    <tbody>
+      <meta charset="UTF-8">
+      {% for tlog in user.reply_logs %}
+      <tr>
+        <td>{{ loop.index}}</td>
+        <td><a href="/tiezi/{{ tlog.tie.id}}">{{tlog.tie.title}}</a></td>
+        <td><a href="{{ tlog.tie.link}}"> {{tlog.tie.content}}</a> </td>
+        <td>{{tlog.replyDate}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

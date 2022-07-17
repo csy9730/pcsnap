@@ -4,7 +4,7 @@ import json
 from flask import render_template, session, redirect, url_for, current_app
 from flask import request, Response, flash
 from myapp import app, db
-from models import Tiezi, Tiezilog
+from models import Tiezi, Tiezilog, Tieuser
 from sqlalchemy import func
 from argparse import Namespace
 
@@ -39,22 +39,79 @@ def jobs_tieba():
 
 
 @app.route('/tiezi', methods=['GET', 'POST'])
-def tiezi():
+def tiezi_list():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 30))
     p = Tiezi.query.paginate(page, per_page=per_page)
-    tzs = p.items
-    tzs.reverse()
-    print(tzs)
-    for tz in tzs:
-        print(tz.logs[-1])
+    ties = p.items
+    ties.reverse()
+    # print(tzs)
+    for tz in ties:
         try:
-            tz.author2 = base64toUtf8(tz.author)
+            # tz.author2 = tz.author
             tz.pointNum = tz.logs[-1].pointNum
         except Exception as e:
             print(e)
     # Login.query.filter_by(user_id=current_user.id).order_by('id')
-    return render_template("tiezi.html", paginate=p, tiezis=tzs)
+    return render_template("tiezi_list.html", paginate=p, ties=ties)
+
+
+@app.route('/tiezi/<int:tid>', methods=['GET', 'POST'])
+def tiezi_page(tid):
+    tie = Tiezi.query.filter_by(id=tid).first()
+    # for tz in tzs:
+    #     try:
+    #         # tz.author2 = tz.author
+    #         tz.pointNum = tz.logs[-1].pointNum
+    #     except Exception as e:
+    #         print(e)
+    # Login.query.filter_by(user_id=current_user.id).order_by('id')
+    return render_template("tiezi_info.html", tie=tie)
+
+@app.route('/users', methods=['GET', 'POST'])
+def user_list_page():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 30))
+    p = Tieuser.query.paginate(page, per_page=per_page)
+    users = p.items
+    users.reverse()
+    # print(tzs)
+    # for tz in tzs:
+    #     try:
+    #         # tz.author2 = tz.author
+    #         tz.pointNum = tz.logs[-1].pointNum
+    #     except Exception as e:
+    #         print(e)
+    # Login.query.filter_by(user_id=current_user.id).order_by('id')
+    return render_template("user_list.html", paginate=p, users=users)
+
+
+@app.route('/user/<int:uid>', methods=['GET', 'POST'])
+def user_info_page(uid):
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 30))
+    user = Tieuser.query.filter_by(id=uid).first()
+    return render_template("user_info.html", user=user)
+
+
+
+@app.route('/users/top', methods=['GET', 'POST'])
+def user_top_page():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 30))
+    p = db.session.query(func.max(Tiezilog.pointNum), Tiezilog).group_by(Tiezilog.tiezi_id).order_by(-Tiezilog.pointNum).paginate(page, per_page=per_page)
+    ties = p.items
+    print(ties)
+    users = []
+    for pointNum, tlog in ties:
+        # print(tz.logs[-1])
+        tz = tlog.tie
+        try:
+            tz.pointNum = pointNum
+            users.append(tz)
+        except Exception as e:
+            print(e)
+    return render_template("user_list.html", paginate=p, users=users)
 
 
 @app.route('/tiezi/top', methods=['GET', 'POST'])
@@ -63,21 +120,18 @@ def tiezi_top():
     per_page = int(request.args.get('per_page', 30))
     # p = Tiezi.query.order_by('pointNum').paginate(page, per_page=per_page)
     p = db.session.query(func.max(Tiezilog.pointNum), Tiezilog).group_by(Tiezilog.tiezi_id).order_by(-Tiezilog.pointNum).paginate(page, per_page=per_page)
-    tzs = p.items
-    # tzs.reverse()
-    print(tzs)
+    ties = p.items
+    print(ties)
     tzs2 = []
-    for pointNum, tlog in tzs:
+    for pointNum, tlog in ties:
         # print(tz.logs[-1])
         tz = tlog.tie
         try:
-            tz.author2 = base64toUtf8(tz.author)
-            tz.author4 = base64toUtf8(tlog.replyAuthor)
             tz.pointNum = pointNum
             tzs2.append(tz)
         except Exception as e:
             print(e)
-    return render_template("tiezi_top.html", paginate=p, tiezis=tzs2)
+    return render_template("tiezi_top.html", paginate=p, ties=tzs2)
 
 
 def base64toUtf8(x):

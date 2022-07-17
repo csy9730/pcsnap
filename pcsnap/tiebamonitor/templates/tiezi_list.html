@@ -11,24 +11,26 @@
       <th>createTime</th>
       <th>content</th>
       <th>author</th>
+      <th>replyer</th>
       <th>pointNum</th>
     </thead>
     <tbody>
       <meta charset="UTF-8">
-      {% for tz in tiezis %}
+      {% for tz in ties %}
       <tr>
         <td>{{ loop.index}}</td>
-        <td> <a href="{{ tz.link}}">{{tz.title}}</a> </td>
+        <td><a href="/tiezi/{{ tz.id}}">{{tz.title}}</a> </td>
         <td>{{ tz.createTime}}</td>
-        <td>{{ tz.content}}</td>
-        <td>{{ tz.author2}}</td>
+        <td><a href="{{ tz.link}}"> {{tz.content}}</a> </td>
+        <td><a href="/user/{{ tz.author_id}}">{{ tz.author.name}}</a> </td>
+        <td><a href="/user/{{ tz.logs[-1].replyer_id}}">{{ tz.logs[-1].replyer.name}}</a></td>
         <td>{{ tz.pointNum}}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% import 'utils/paging.html' as pg %}
-  {{ pg.page(paginate, "tiezi") }}
+  {{ pg.page(paginate, "tiezi_list") }}
 
 </div>
 {% endblock %}

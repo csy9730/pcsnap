@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h1>{{ tie.title }}</h1>
+
+  <h6><a href="{{ tie.link}}">{{tie.content}}</a></h6>  
+  <h6><a href="{{ tie.link}}">{{tie.link}}</a></h6> 
+  <h6>{{tie.createTime}}</h6>  
+  <h6><a href="/user/{{ tie.author.id}}">{{tie.author.name}}</a></h6>  
+  
+  <table class="table">
+    <thead>
+      <th>index</th>
+      <th>pointNum</th>
+      <th>layerNum </th>
+      <th>replyTime</th>
+      <th>replyer</th>
+    </thead>
+    <tbody>
+      <meta charset="UTF-8">
+      {% for tl in tie.logs %}
+      <tr>
+        <td>{{ loop.index}}</td>
+        <td>{{tl.pointNum}}</td>
+        <td>{{tl.layerNum}}</td>
+        <td>{{tl.replyDate}}</td>
+        <td><a href="/user/{{ tl.replyer_id}}">{{ tl.replyer.name}}</a> </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h1>Welcome Tieba users</h1>
+  <h3>Tieba page.</h3>
+
+  <table class="table">
+    <thead>
+      <th>index</th>
+      <th>name </th>
+      <th>link</th>
+    </thead>
+    <tbody>
+      <meta charset="UTF-8">
+      {% for tz in users %}
+      <tr>
+        <td>{{ loop.index}}</td>
+        <td>{{ tz.link}}</td>
+        <td><a href="/user/{{ tz.id}}"> {{tz.name}}</a> </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% import 'utils/paging.html' as pg %}
+  {{ pg.page(paginate, "user_list_page") }}
+
+</div>
+{% endblock %}
