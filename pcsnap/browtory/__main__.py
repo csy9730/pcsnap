@@ -6,6 +6,7 @@ from urllib.parse import quote
 import operator
 from collections import OrderedDict
 import logging
+from typing import List, Dict, Optional
 
 DEFAULT_PATH = r"User Data\Default"
 
@@ -15,7 +16,8 @@ DEFAULT_PATH = r"User Data\Default"
 # - [ ] add: select viewer
 
 
-def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
+
+def getLogger(name:str, level="INFO", disable=False, log_file="procWatcher.log"):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.disabled = disable
@@ -30,10 +32,10 @@ def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
             logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
         logger.addHandler(console)
     return logger
-
+os.makedirs(os.path.expanduser('~/.pcsnap'), exist_ok=True)
 logger = getLogger(__name__, log_file=os.path.expanduser('~/.pcsnap/browtory.log'))
 
-def getChromePath(input):
+def getChromePath(input:Optional[str]=None) -> str:
     """
     ~\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe
     ~\\AppData\\Local\\Google\\Chrome\\User Data\\Default
@@ -69,7 +71,7 @@ def getChromePath(input):
         raise FileNotFoundError
     return input
 
-def chromeOper(input=None, output=None, dry_run=None, **kwargs):
+def chromeOper(input:Optional[str]=None, output=None, dry_run=False, **kwargs):
     try:
         input = getChromePath(input)
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -99,7 +101,7 @@ def chromeOper(input=None, output=None, dry_run=None, **kwargs):
         else:
             logger.info('mv %s %s' %(history_db, output))
 
-def fetchChromeHistory(history_db):
+def fetchChromeHistory(history_db:str):
     # querying the db
     c = sqlite3.connect(history_db)
     cursor = c.cursor()
@@ -110,7 +112,7 @@ def fetchChromeHistory(history_db):
 
     return results
 
-def url_parse(url):
+def url_parse(url:str) -> str:
     try:
         parsed_url_components = url.split('//')
         sublevel_split = parsed_url_components[1].split('/', 1)
@@ -136,7 +138,7 @@ def analyze(results):
         print("[.] Uh?")
         quit()
 
-def chromeShow(input=None, output=None, **kwargs):
+def chromeShow(input:str=None, output=None, **kwargs):
     results = fetchChromeHistory(input)
     logger.info(len(results))
     if output:

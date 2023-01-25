@@ -1,7 +1,7 @@
 import os
 import sys
 from jinja2 import Template
-
+from typing import List, Dict
 
 template = """.. git documentation master file, created by
    sphinx-quickstart on Sun Sep 13 21:16:26 2020.
@@ -66,7 +66,10 @@ Indices and tables
 * :ref:`search`
 """
 
-rstTemplate = """
+rstTemplate = """{% if title %}{{title}}
+{% else %}readme{% endif %}
+==================
+
 .. toctree::
    :maxdepth: 1
    :caption: 扩展:
@@ -77,15 +80,14 @@ rstTemplate = """
    {% endfor %}
 """
 
-mdTemplate = """
-# readme
+mdTemplate = """{% if title %}# {{title}} {% else %}# readme{% endif %}
 
 {% for txt in txt_list -%}
 - [{{ txt.name }}]({{txt.path}})
 {% endfor %}
 """
 
-def genMdfiles(pth):
+def genMdfiles(pth:str) -> List[Dict[str, str]]:
     lst =[]
 
     for r, d, f in os.walk(pth):
@@ -102,9 +104,9 @@ def genMdfiles(pth):
     return lst 
 
 
-def genContent(lst, template):
+def genContent(lst:List[Dict[str, str]], template:str, **kwargs) -> str:
     tp = Template(template)
-    dct = {"txt_list": lst}
+    dct = {"txt_list": lst, **kwargs}
     txt = tp.render(**dct)
     return txt
 
@@ -115,7 +117,8 @@ def parse_args(cmds=None):
     parser.add_argument('path', default='.', help='path file')
     parser.add_argument('--verbose', '-v', action='store_true', help='verbose mode')
     parser.add_argument('--output', '-o', help='output file') 
-    parser.add_argument('--output-type', '-ot', choices=['rst', 'md'], default='md', help='output file type') 
+    parser.add_argument('--output-type', '-ot', choices=['rst', 'md'], help='output file type') 
+    parser.add_argument('--title', '-t', help='title') 
 
     args = parser.parse_args(cmds) 
     return args
@@ -123,11 +126,19 @@ def parse_args(cmds=None):
 def main(cmds=None):
     args = parse_args(cmds)
     lst = genMdfiles(args.path)  
-    if args.output_type == "md":
+
+    if args.output_type is None:
+        output_type = 'rst' if os.path.splitext(args.output)[-1] == '.rst' else 'md'
+    else:
+        output_type = args.output_type
+    if output_type == "md":
         temp = mdTemplate
     else:
         temp = rstTemplate
-    txt = genContent(lst, temp)
+
+    if args.verbose:
+        print(lst)
+    txt = genContent(lst, temp, title=args.title)
     if args.output:
         with open(args.output, 'w') as fp:
             fp.write(txt)

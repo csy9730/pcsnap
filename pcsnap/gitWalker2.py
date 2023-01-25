@@ -4,7 +4,7 @@ import os.path as osp
 import asyncio
 import json
 from pcsnap.utils.utils import aTimeCount, timeCount
-
+from typing import List, Dict, Generator, Any
 from pathlib import PurePosixPath, Path
 
 EXCLUDE_DIRS = ['.idea', '.vscode', '__pycache__']
@@ -26,7 +26,7 @@ GIT_WALKER = ".gitwalker.json"
     * add: remote path
 
 """
-def walk_dir(adir, maxlevels=10, quiet=0, use_posix_path=None):
+def walk_dir(adir:str, maxlevels=10, quiet=0, use_posix_path=False) -> Generator[str, None, None]:
     if quiet < 2 and isinstance(adir, os.PathLike):
         adir = os.fspath(adir)
     if not quiet:
@@ -62,7 +62,7 @@ def walk_dir(adir, maxlevels=10, quiet=0, use_posix_path=None):
     yield from _walk_dir(adir, None, maxlevels=maxlevels)
 
 
-async def path2gitrepo(pth):
+async def path2gitrepo(pth:str) -> str:
     cmd = ["git", "-C", pth, "remote", "-v"]
     # ret.returncode==0:
 
@@ -77,7 +77,7 @@ async def path2gitrepo(pth):
     return remote
 
 
-async def getGitStatus(pth):
+async def getGitStatus(pth:str) -> str:
     cmd = ["git", "-C", pth, "status", "-s"]
     # ret.returncode==0:
 
@@ -93,7 +93,7 @@ async def getGitStatus(pth):
     return remote
 
 
-async def getGitLog(pth):
+async def getGitLog(pth:str) -> str:
     cmd = ["git", "-C", pth, "log", "master..origin/master", "-3", "--oneline", "-q"]
     # ret.returncode==0:
 
@@ -107,14 +107,14 @@ async def getGitLog(pth):
     return remote
 
 
-def isGitRepo():
+def isGitRepo(pth:str) -> bool:
     if osp.exists(pth):
         lst = os.listdir()
         if ".git" in lst:
             return True
 
 
-async def gitClone(pth, repo):
+async def gitClone(pth:str, repo):
     if osp.exists(pth):
         lst = os.listdir()
         if lst:
@@ -146,7 +146,7 @@ async def gitClone(pth, repo):
     return remote
 
 
-async def gitPull(pth, repo):
+async def gitPull(pth:str, repo):
     if not osp.exists(pth):
         print(pth, "not a path")
         return
@@ -164,7 +164,7 @@ async def gitPull(pth, repo):
 
 
 
-async def gitPush(pth, repo):
+async def gitPush(pth:str, repo):
     if not osp.exists(pth):
         print(pth, "not a path")
         return
@@ -181,7 +181,7 @@ async def gitPush(pth, repo):
     return remote
 
 
-def parseRemote0(ss):
+def parseRemote0(ss:bytes) -> str:
     ssp = ss.split(b'\n')
     if ssp:
         for s in ssp:
@@ -203,12 +203,12 @@ def parseRemote(ss):
         return []
 
 
-def parseLines(ss):
+def parseLines(ss:bytes) -> List[str]:
     ssp = ss.split(b'\n')
     return [s.decode('utf-8')  for s in ssp if s]
 
 
-def parseStatus(ss):
+def parseStatus(ss: bytes) -> str:
     # ssp = ss.split(b'\n')
     return ss.decode('utf-8') # [s for s in ssp if s] 
 
@@ -285,7 +285,7 @@ def _getFirst(arg):
             return x
         return None
     else:
-        return args
+        return arg
 
 
 async def gitwalker_status(args):

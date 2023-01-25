@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
 from config import DB
+from typing import List, Dict, Optional, Iterable, Generator, Any
 
 Base = declarative_base()
 
@@ -107,7 +108,7 @@ def initDb(args):
     Base.metadata.create_all(engine) # , checkfirst=True
     return engine
 
-def process_data(dat):
+def process_data(dat:Iterable[Dict]):
     for d in dat:
         d["createTime"] = process_datetime(d["createTime"])
         d["replyDate"] = process_datetime(d["replyDate"])
@@ -115,7 +116,7 @@ def process_data(dat):
         # print(d.pop("author_link"), d.pop("replyer_link"))
         yield d
 
-def process_datetime(tm, nowt=None):
+def process_datetime(tm:str, nowt:Optional[dt.datetime]=None) -> dt.datetime:
     if nowt is None:
         nowt = dt.datetime.now()
     
@@ -139,7 +140,7 @@ def process_datetime(tm, nowt=None):
     # re.findall(r'((\d3+)-)(\d+)-*(\d+)*', '1-1')
 
 
-def addProcessLog(DBSession, tasklist):
+def addProcessLog(DBSession:sessionmaker, tasklist:Iterable[Dict[str, str]]):
     session = DBSession()
     qAlv = session.query(Tiezilog).filter_by(is_live=True)
     alvs = qAlv.all()
@@ -209,7 +210,7 @@ def showDb(**kwargs):
 def serveDb(**kwargs):
     pass
 
-def getFirst(x):
+def getFirst(x:List):
     if isinstance(x, list):
         if x:
             return x[0]
@@ -217,20 +218,20 @@ def getFirst(x):
             return None
 
 
-def removeEmoji0(x):
+def removeEmoji0(x:str) -> str:
     # highpoints = re.compile(u'[\uD800-\uDBFF][\uDC00-\uDFFF]')
     highpoints = re.compile(u'[\U00010000-\U0010ffff]')
     x2 = highpoints.sub(u'', x)
     return x2
 
 
-def removeEmoji(x):
+def removeEmoji(x:str) -> str:
     import emoji
     x = removeEmoji0(emoji.demojize(x))
     return re.compile('[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]').sub(' ', x)
 
 
-def tb_crawl(url):
+def tb_crawl(url:str) -> Generator[Dict[str, str], Any, Any]:
     import requests
     from lxml import etree
 

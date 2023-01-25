@@ -10,8 +10,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.schema import ForeignKey  # , relationship
+from typing import List, Dict, Optional, Union, Iterator
 
-def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
+def getLogger(name:str, level="INFO", disable=False, log_file="procWatcher.log"):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.disabled = disable
@@ -28,24 +29,24 @@ def getLogger(name, level="INFO", disable=False, log_file="procWatcher.log"):
     return logger
 
 
-def gen_db_path(pth):
+def gen_db_path(pth:str) -> str:
     DB = 'sqlite:///%s/tasklists.db' % pth
     DB = DB.replace('\\', '/')
     return DB
 
 
-def get_all_config_path():
+def get_all_config_path() -> List[str]:
     return [os.path.join(os.getcwd(), '.pcsnap'), os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pcsnap'), os.path.expanduser('~/.pcsnap'), '/etc/.pcsnap']
 
 
-def find_config_path():
+def find_config_path() -> str:
     ff = get_all_config_path()
     for f in ff:
         if os.path.isdir(f):
             return f
     return ff[-2]
 
-def new_get_conffile(pfn):
+def new_get_conffile(pfn:str):
     import configparser
     _conf = configparser.ConfigParser()
     _conf.read(pfn)
@@ -118,7 +119,7 @@ class Processlog(Base):
         return '<Processlog %s %s>' % (self.proc.name, self.datetime)
 
 
-def addProcessLog(DBSession, tasklist):
+def addProcessLog(DBSession:sessionmaker, tasklist:Iterator[psutil.Process]):
     session = DBSession()
     qAlv = session.query(Process).filter_by(is_live=True)
     alvs = qAlv.all()

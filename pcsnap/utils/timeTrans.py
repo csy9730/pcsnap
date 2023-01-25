@@ -1,7 +1,7 @@
 import time
 
 
-def toChromeTime(d):
+def toChromeTime(d:int) -> float:
     '''
     -- 13181125268490285 微秒
     -- select datetime('now')

@@ -1,7 +1,7 @@
 import time
+from typing import Callable, Awaitable
 
-
-def timeCount(func):
+def timeCount(func:Callable):
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
         ret = func(*args, **kwargs)
@@ -11,7 +11,7 @@ def timeCount(func):
     return wrapper
 
 
-def aTimeCount(func):
+def aTimeCount(func:Awaitable):
     async def wrapper(*args, **kwargs):
         start = time.perf_counter()
         ret = await func(*args, **kwargs)
