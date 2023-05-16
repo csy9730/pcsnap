@@ -15,7 +15,60 @@ DEFAULT_PATH = r"User Data\Default"
 # - [ ] add: pull by sftp
 # - [ ] add: select viewer
 
+def get_all_config_path() -> List[str]:
+    return [os.path.join(os.getcwd(), '.pcsnap'), os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pcsnap'), os.path.expanduser('~/.pcsnap'), '/etc/pcsnap']
 
+
+def find_config_path():
+    ff = get_all_config_path()
+    for f in ff:
+        if os.path.isdir(f):
+            return f
+    return ff[-2]
+
+
+class MyConfigWrap:
+    def __init__(self, pfn:str):
+        import configparser
+        self.conf = configparser.ConfigParser()
+        self.conf.read(pfn)
+        self.filename = pfn
+    
+    def generate_default(self, force=False):
+        if self.conf.sections() and not force:
+            return
+        import pcsnap
+        import platform
+        dct = {
+            "default": {
+                "created_at": time.strftime('%Y-%m-%d %H:%M:%S'), 
+                "author": os.getlogin(), 
+                "agent": ' '.join(['pcsnap', 'browtory', pcsnap.__version__, 'python', platform.python_version(), platform.system(), platform.version(), platform.machine()]), 
+                # "log_file": LOG_FILE, 
+                # "database": DB,
+                # "hostname": socket.gethostname(),
+                "user_id": 0
+            }
+        }
+        self.conf.read_dict(dct)   
+        self.conf.write(open(self.filename, 'w'))
+
+    def update(self, key, value):
+        dct = {"default": {"updated_at": time.strftime('%Y-%m-%d %H:%M:%S'), key:value}}
+        self.conf.read_dict(dct)   
+        self.conf.write(open(self.filename, 'w'))
+
+    def get(self, section, option, **kwargs):
+        return self.conf.get(section, option, **kwargs)
+
+
+pdir = find_config_path()
+os.makedirs(pdir, exist_ok=True)
+pfn = os.path.join(pdir, "browtory.ini")
+conf = MyConfigWrap(pfn)
+# DB = conf.get('default', 'database', fallback=1)
+REPO = conf.get('default', 'repo', fallback=os.path.join(pdir, ''))
+LOG_FILE = conf.get('default','log_file', fallback=os.path.join(pdir, 'browtory.log'))
 
 def getLogger(name:str, level="INFO", disable=False, log_file="procWatcher.log"):
     logger = logging.getLogger(name)
@@ -32,11 +85,13 @@ def getLogger(name:str, level="INFO", disable=False, log_file="procWatcher.log")
             logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # create a logging format
         logger.addHandler(console)
     return logger
-os.makedirs(os.path.expanduser('~/.pcsnap'), exist_ok=True)
-logger = getLogger(__name__, log_file=os.path.expanduser('~/.pcsnap/browtory.log'))
 
-def getChromePath(input:Optional[str]=None) -> str:
+logger = getLogger(__name__, log_file=LOG_FILE)
+
+def guessChromePath(input:Optional[str]=None) -> str:
     """
+    input
+        None
     ~\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe
     ~\\AppData\\Local\\Google\\Chrome\\User Data\\Default
     ~\\AppData/Roaming/360se6/Application/360se.exe
@@ -48,6 +103,8 @@ def getChromePath(input:Optional[str]=None) -> str:
     C:\\Program Files\\360se\\360Chrome\\Chrome\\Application\\360chrome.exe
     C:\\Program Files\\360se\\360Chrome\\Chrome\\User Data\\Default
 
+    return 
+        C:\\Program Files\\360se\\360Chrome\\Chrome\\User Data\Default
     """
     if input is None:
         input = os.path.expanduser('~')+r"\AppData\Local\Google\Chrome\User Data\Default"
@@ -71,16 +128,20 @@ def getChromePath(input:Optional[str]=None) -> str:
         raise FileNotFoundError
     return input
 
-def chromeOper(input:Optional[str]=None, output=None, dry_run=False, **kwargs):
+def chromeOper(input:Optional[str]=None, output=None, dry_run=False, verbose=False, **kwargs):
     try:
-        input = getChromePath(input)
+        input = guessChromePath(input)
     except (FileNotFoundError, NotADirectoryError) as e:
         logger.error(e)
         exit(-1)
 
     input2 = quote(input, safe='')
     if output is None:
-        output_dir = os.path.join("chromeDefault", time.strftime("%Y%m%d_%H%M%S", time.localtime()))
+        if REPO:
+            REPO2 = REPO if os.path.isabs(REPO) else os.path.join(pdir, REPO) 
+            output_dir = os.path.join(REPO2, time.strftime("%Y%m%d_%H%M%S", time.localtime()))
+        else:
+            output_dir = os.path.join("chromeDefault", time.strftime("%Y%m%d_%H%M%S", time.localtime()))
     else:
         output_dir = os.path.dirname(output)
 
@@ -89,6 +150,9 @@ def chromeOper(input:Optional[str]=None, output=None, dry_run=False, **kwargs):
         os.makedirs(output_dir)
 
     files = ['history', 'Bookmarks', 'Cookies', 'Preferences', 'Login Data']
+    if verbose:
+        files += ["Top Sites", "Network Action Predictor", "Last Session", "Last Tabs", "Web Data", "Visited Links", "Favicons", "Extension Cookies", "Shortcuts", "Secure Preferences", "heavy_ad_intervention_opt_out.db", "Origin Bound Certs", "tab_referer_url", "QuotaManager", "TransportSecurity", "Network/Cookies"]
+        os.makedirs(os.path.join(output_dir, 'network'), exist_ok=True)
     for f in files:
         history_db = os.path.join(input, f)
         output = os.path.join(output_dir, f)
@@ -122,23 +186,23 @@ def url_parse(url:str) -> str:
         print("URL format error!")
 
 
-def analyze(results):
+def analyze(results:Dict[str, int], showFig=False):
     import matplotlib.pyplot as plt
-    prompt = input("[.] Type <c> to print or <p> to plot\n[>] ")
+    # prompt = input("[.] Type <c> to print or <p> to plot\n[>] ")
 
-    if prompt == "c":
-        for site, count in sites_count_sorted.items():
+    if not showFig:
+        for site, count in results.items():
             print(site, count)
-    elif prompt == "p":
+    else:
         plt.bar(range(len(results)), results.values(), align='edge')
         plt.xticks(rotation=45)
         plt.xticks(range(len(results)), results.keys())
         plt.show()
-    else:
-        print("[.] Uh?")
-        quit()
 
-def chromeShow(input:str=None, output=None, **kwargs):
+def chromeShow(input:str=None, output=None, show_fig=False, **kwargs):
+    if input is None:
+        chm = guessChromePath(input)
+        input = os.path.join(chm, 'history')
     results = fetchChromeHistory(input)
     logger.info(len(results))
     if output:
@@ -157,11 +221,28 @@ def chromeShow(input:str=None, output=None, **kwargs):
 
         sites_count_sorted = OrderedDict(
             sorted(sites_count.items(), key=operator.itemgetter(1), reverse=True))
-        print(sites_count_sorted)
-        analyze (sites_count_sorted)
+        # print(sites_count_sorted)
+        analyze(sites_count_sorted, show_fig)
 
 def chromeserve(**kwargs):
     logger.info("todo")
+
+def chromeConfig(key, value, **kwargs):
+    conf.generate_default()
+    conf.update(key, value)
+    logger.info("update config:%s=%s" %(key,value))
+
+def chromeConfigList(**kwargs):
+    for sec in conf.conf.sections():
+        keys = conf.conf.options(sec)
+        for k in keys:
+            print(k, conf.conf.get(sec, k))
+
+def chromeConfigDel(key, **kwargs):
+    conf.generate_default()
+    conf.conf.remove_option('default', key)
+    conf.conf.write(open(conf.filename, 'w'))
+    logger.info("del config:%s" %key)
 
 def parse_args(cmds=None):
     import argparse
@@ -171,18 +252,36 @@ def parse_args(cmds=None):
     parserH = subparsers.add_parser('pull', help='pull data to database')
     parserH.add_argument('--input', '-i', help='''add a path to search path, a path such as "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" ''')
     parserH.add_argument('--output', '-o', help='output file to the dir')
-    parserH.add_argument('--dry-run', action='store_true', help='dry run')                    
+    parserH.add_argument('--dry-run', action='store_true', help='dry run')  
+    parserH.add_argument('--verbose', '-v', action='store_true', help='verbose')                 
     parserH.set_defaults(handle=chromeOper)
 
-    parserV = subparsers.add_parser('show', help='serve database to user ')
-    parserV.add_argument('--input', '-i')
-    parserV.add_argument('--output', '-o')
+    parserV = subparsers.add_parser('show', help='show database to user ')
+    parserV.add_argument('--input', '-i', help='history db file path')
+    parserV.add_argument('--output', '-o', help='save to csv file')
+    parserV.add_argument('--show-fig', action='store_true', help='show figure')  
 
     parserV.set_defaults(handle=chromeShow)
 
     parserS = subparsers.add_parser('serve', help='serve database to user ')
     parserS.set_defaults(handle=chromeserve)
-    args = parser.parse_args(None)
+
+    parserC = subparsers.add_parser('config', help='edit config file')
+
+    subparsersC = parserC.add_subparsers(help='edit browtory config file')
+    parserCA = subparsersC.add_parser('add', help='add config data')
+    parserCA.add_argument('key')
+    parserCA.add_argument('value')
+    parserCA.set_defaults(handle=chromeConfig)
+
+    parserCL = subparsersC.add_parser('list', help='list config data')
+    parserCL.set_defaults(handle=chromeConfigList)
+
+    parserCD = subparsersC.add_parser('del', help='delete config data')
+    parserCD.add_argument('key')
+    parserCD.set_defaults(handle=chromeConfigDel)
+
+    args = parser.parse_args(cmds)
 
     if not hasattr(args, 'handle'):
         parser.print_help()

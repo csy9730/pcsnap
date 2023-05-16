@@ -1,11 +1,10 @@
 import argparse
 import time
-import psutil
-import json
 import logging
 import sys
 import os
 import datetime as dt
+from typing import List
 
 from sqlalchemy import Column, String, Integer, create_engine, Boolean, Float, DateTime, Enum, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
@@ -38,14 +37,14 @@ def getLogger(name, level="INFO", disable=False, log_file="flactodol.log"):
     return logger
 
 
-def gen_db_path(pth):
+def gen_db_path(pth:str):
     DB = 'sqlite:///%s/flactodol.db' % pth
     DB = DB.replace('\\', '/')
     return DB
 
 
-def get_all_config_path():
-    return [os.path.join(os.getcwd(), '.pcsnap'), os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pcsnap'), os.path.expanduser('~/.pcsnap'), '/etc/.pcsnap']
+def get_all_config_path() -> List[str]:
+    return [os.path.join(os.getcwd(), '.pcsnap'), os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pcsnap'), os.path.expanduser('~/.pcsnap'), '/etc/pcsnap']
 
 
 def find_config_path():
@@ -55,7 +54,7 @@ def find_config_path():
             return f
     return ff[-2]
 
-def new_get_conffile(pfn):
+def new_get_conffile(pfn:str):
     import configparser
     _conf = configparser.ConfigParser()
     _conf.read(pfn)
@@ -63,6 +62,8 @@ def new_get_conffile(pfn):
     if not _conf.sections():
         DB = gen_db_path(os.path.expanduser('~/.pcsnap'))
         LOG_FILE = os.path.expanduser('~/.pcsnap/flactodol.log')
+        import pcsnap
+        import platform
         dct = {
             "default": {
                 "created_at": time.strftime('%Y-%m-%d %H:%M:%S'), 

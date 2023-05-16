@@ -11,7 +11,13 @@ def parse_args(cmds=None):
 
 def main(cmds=None):
     args = parse_args(cmds)
-
+    print("""browtory
+    flactodol
+    genMarkdown
+    recorder
+    proc.procWatcher
+    gitWalker2
+    """)
 
 if __name__ == "__main__":
     main()

@@ -290,7 +290,7 @@ def _getFirst(arg):
 
 async def gitwalker_status(args):
     if not osp.exists(GIT_WALKER):
-        raise FileNotFoundError
+        raise FileNotFoundError(GIT_WALKER)
 
     with open(GIT_WALKER, "r") as fp:
         dct = json.load(fp)
